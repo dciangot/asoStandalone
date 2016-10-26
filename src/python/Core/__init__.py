@@ -6,11 +6,13 @@ import subprocess
 
 __version__ = '1.0.3'
 
+
 def getHashLfn(lfn):
     """
     Provide a hashed lfn from an lfn.
     """
     return hashlib.sha224(lfn).hexdigest()
+
 
 def execute_command(command):
     """
@@ -29,8 +31,8 @@ def execute_command(command):
 
     return stdout, stderr, rc
 
-#TODO: def getDNFromUserName(username, log, ckey = None, cert = None)
+# TODO: def getDNFromUserName(username, log, ckey = None, cert = None)
 
-#TODO: def getProxy(defaultDelegation, log)
+# TODO: def getProxy(defaultDelegation, log)
 
-#TODO: LOGGING
+# TODO: LOGGING

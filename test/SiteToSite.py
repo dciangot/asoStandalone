@@ -1,5 +1,5 @@
 #!/usr/bin/env
-'''
+"""
 Requirements:
 -- fts3 python bindings installed
 -- valid user proxy
@@ -15,7 +15,8 @@ python SiteToSite.py -s "T3_IT_Perugia" -d "T2_IT_Pisa" -i "input.json" -p "/dat
 with input.json conten:
 {"lfns":["/store/user/dciangot/WW_DoubleScattering_8TeV-pythia8/CRAB3_test_104/161013_132607/0000/output_72.root"]}
 
-'''
+"""
+
 import json
 import sys
 import urllib
