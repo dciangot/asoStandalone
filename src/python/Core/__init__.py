@@ -36,7 +36,7 @@ def execute_command(command):
 
     return stdout, stderr, rc
 
-# TODO: def getDNFromUserName(username, log, ckey = None, cert = None)
+
 def getDNFromUserName(username, log, ckey = None, cert = None):
     """
     get DN for user from siteDB
@@ -47,7 +47,7 @@ def getDNFromUserName(username, log, ckey = None, cert = None):
     :return:
     """
     c = pycurl.Curl()
-    # TODO: make url configurable
+    # TODO: make url configurable and use log
     c.setopt(c.URL, 'https://cmsweb.cern.ch/sitedb/data/prod/people?match=%s' % username)
     c.setopt(pycurl.SSL_VERIFYPEER, False)
     c.setopt(pycurl.SSLKEY, ckey)
@@ -56,12 +56,55 @@ def getDNFromUserName(username, log, ckey = None, cert = None):
     e = BytesIO()
     c.setopt(pycurl.WRITEFUNCTION, e.write)
     c.perform()
-    # TODO: exception
+    # TODO: exception use log
     results = json.loads(e.getvalue().decode('UTF-8'))
+
+    e.close()
+    c.close()
 
     return results['dn']
 
-# TODO: def getProxy(defaultDelegation, log)
+# TODO: def getProxy(defaultDelegation, log): voms needed
+def getProxy(defaultDelegation, log):
+    """
+    get user Proxy
+    :param defaultDelegation:
+    :param log:
+    :return:
+    """
+    # TODO: test http://ndg-security.ceda.ac.uk/wiki/MyProxyClient
+    # https://github.com/dmwm/WMCore/blob/master/src/python/WMCore/Credential/Proxy.py#69
+    # get or renew proxy
+
+
+    proxyPath = os.path.join(self.credServerPath, sha1(self.userDN + self.vo + self.group + self.role).hexdigest())
+
+    timeLeftCmd = 'voms-proxy-info -file ' + proxyPath + ' -timeleft'
+    timeLeftLocal, _, self.retcode = execute_command(self.setEnv(timeLeftCmd), self.logger, self.commandTimeout)
+    # TODO: exception
+
+    try:
+        timeLeft = int(timeLeftLocal.strip())
+    except ValueError:
+        timeLeft = sum(int(x) * 60 ** i for i, x in enumerate(reversed(timeLeftLocal.strip().split(":"))))
+
+    if timeLeft > 0:
+        cmd = 'voms-proxy-info -file ' + proxyPath + ' -actimeleft'
+        ACtimeLeftLocal, _, retcode = execute_command(self.setEnv(cmd), self.logger, self.commandTimeout)
+        # TODO: exception
+        if ACTimeLeftLocal > 0:
+            timeLeft = self.checkLifeTimes(timeLeft, ACTimeLeftLocal, proxy)
+        else:
+            timeLeft = 0
+
+    if timeLeft is not None and timeleft > 3600:
+        return (True, proxyPath)
+
+    # otherwise renew it
+    # proxyPath = proxy.logonRenewMyProxy()
+    # timeleft = proxy.getTimeLeft(proxyPath)
+    # if timeleft is not None and timeleft > 0:...
+
 
 
 
