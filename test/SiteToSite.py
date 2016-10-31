@@ -93,7 +93,7 @@ def main(argv):
     source = ""
     proxy = ""
     try:
-        opts, args = getopt.getopt(argv,"hi:d:s:p:",["ifile=","destination=","source=","proxy="])
+        opts, args = getopt.getopt(argv, "hi:d:s:p:", ["ifile=", "destination=", "source=", "proxy="])
     except getopt.GetoptError:
         print('SiteToSite.py -i <inputfile.json> -d <destination> -s <source> -p <proxyPath>')
         sys.exit(2)
