@@ -76,6 +76,7 @@ class Getter(object):
             logger.debug("Logging level initialized to %s.", loglevel)
             return logger
 
+        self.documents = {}
         self.logger = setRootLogger(quiet, debug)
         self.slaves = Submitter()
         self.config = config
@@ -89,13 +90,23 @@ class Getter(object):
         - create subprocesses
         """
 
-        sites, users = self.oracleSiteUser(self.oracleDB)
-        # TODO: store tfc rules
-        # for now inputs are just: lfns, dest, source, proxyPath
+        active_lfns = []
+        while (not self.STOP):
+            sites, users = self.oracleSiteUser(self.oracleDB)
 
-        # while(not self.STOP):
-        #
-        # self.slaves.injectWorks(toInject)
+            for _user in users:
+                for source in sites:
+                    for dest in sites:
+                        lfns = [x['lfn'] for x in self.documents
+                                if x['source'] == source and x['dest'] == dest and x['username'] == _user[0] and
+                                x not in active_lfns]
+                        active_lfns = active_lfns + lfns
+                        self.slaves.injectWorks(lfns, _user, source, dest, active_lfns)
+
+            sleep(60)
+
+        # TODO: store tfc rules, and remove from list lfn completed
+        # for now inputs are just: lfns, dest, source, proxyPath
 
 
     def oracleSiteUser(self, db):
@@ -126,19 +137,16 @@ class Getter(object):
 
         self.logger.debug("Retrieving users from oracleDB")
 
-        documents = {}
         try:
             results = db.get(self.config.oracleFileTrans,
                              data=encodeRequest(fileDoc))
-            documents = oracleOutputMapping(results)
+            self.documents = oracleOutputMapping(results)
         except Exception as ex:
             self.logger.error("Failed to get acquired transfers \
                               from oracleDB: %s" % ex)
             pass
 
-        documents = oracleOutputMapping(results)
-
-        for doc in documents:
+        for doc in self.documents:
             if doc['user_role'] is None:
                 doc['user_role'] = ""
             if doc['user_group'] is None:
@@ -146,7 +154,7 @@ class Getter(object):
 
         try:
             unique_users = [list(i) for i in
-                            set(tuple([x['username'], x['user_group'], x['user_role']]) for x in documents)]
+                            set(tuple([x['username'], x['user_group'], x['user_role']]) for x in self.documents)]
         except Exception as ex:
             self.logger.error("Failed to map active users: %s" % ex)
 
@@ -158,8 +166,8 @@ class Getter(object):
         self.logger.info('%s active users' % len(active_users))
         self.logger.debug('Active users are: %s' % active_users)
 
-        active_sites_dest = [x['destination'] for x in documents]
-        active_sites = active_sites_dest + [x['source'] for x in documents]
+        active_sites_dest = [x['destination'] for x in self.documents]
+        active_sites = active_sites_dest + [x['source'] for x in self.documents]
         try:
             self.kibana_file.write(self.doc_acq + "\n")
         except Exception as ex:
