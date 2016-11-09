@@ -12,6 +12,7 @@ from Core import Submitter
 import logging
 import sys
 import os
+import signal
 
 
 class Getter(object):
@@ -77,6 +78,8 @@ class Getter(object):
             return logger
 
         self.documents = {}
+        self.doc_acq = ''
+        self.STOP = False
         self.logger = setRootLogger(quiet, debug)
         self.slaves = Submitter()
         self.config = config
@@ -91,7 +94,7 @@ class Getter(object):
         """
 
         active_lfns = []
-        while (not self.STOP):
+        while not self.STOP:
             sites, users = self.oracleSiteUser(self.oracleDB)
 
             for _user in users:
@@ -108,13 +111,12 @@ class Getter(object):
         # TODO: store tfc rules, and remove from list lfn completed
         # for now inputs are just: lfns, dest, source, proxyPath
 
-
     def oracleSiteUser(self, db):
         """
         1. Acquire transfers from DB
         2. Get acquired users and destination sites
         """
-        fileDoc = {}
+        fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'acquireTransfers'
 
@@ -130,7 +132,7 @@ class Getter(object):
 
         self.doc_acq = str(result)
 
-        fileDoc = {}
+        fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'acquiredTransfers'
         fileDoc['grouping'] = 0
@@ -176,6 +178,10 @@ class Getter(object):
         self.logger.debug('Active sites are: %s' % list(set(active_sites)))
         return list(set(active_sites)), active_users
 
+    def quit_(self, dummyCode, dummyTraceback):
+        self.logger.info("Received kill request. Setting STOP flag in the master process...")
+        self.STOP = True
+
 if __name__ == '__main__':
     """
     - get option and config masterworker
@@ -183,36 +189,36 @@ if __name__ == '__main__':
 
     from optparse import OptionParser
 
-    usage  = "usage: %prog [options] [args]"
+    usage = "usage: %prog [options] [args]"
     parser = OptionParser(usage=usage)
 
-    parser.add_option("-d","--debug",
-                       action = "store_true",
-                       dest = "debug",
-                       default = False,
-                       help = "print extra messages to stdout" )
-    parser.add_option( "-q", "--quiet",
-                       action = "store_true",
-                       dest = "quiet",
-                       default = False,
-                       help = "don't print any messages to stdout" )
+    parser.add_option("-d", "--debug",
+                      action="store_true",
+                      dest="debug",
+                      default=False,
+                      help="print extra messages to stdout" )
+    parser.add_option("-q", "--quiet",
+                      action="store_true",
+                      dest="quiet",
+                      default=False,
+                      help="don't print any messages to stdout" )
 
-    parser.add_option( "--config",
-                       dest = "config",
-                       default = None,
-                       metavar = "FILE",
-                       help = "configuration file path" )
+    parser.add_option("--config",
+                      dest="config",
+                      default=None,
+                      metavar="FILE",
+                      help="configuration file path" )
 
     (options, args) = parser.parse_args()
 
     # TODO: adapt it for ASO
     if not options.config:
-        raise ConfigException("Configuration not found")
+        raise
 
     configuration = loadConfigurationFile( os.path.abspath(options.config) )
     status_, msg_ = validateConfig(configuration)
     if not status_:
-        raise ConfigException(msg_)
+        raise
 
     mw = Getter(configuration, quiet=options.quiet, debug=options.debug)
     signal.signal(signal.SIGINT, mw.quit_)
