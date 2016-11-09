@@ -178,11 +178,9 @@ class Getter(object):
 
 if __name__ == '__main__':
     """
-    -
+    - get option and config masterworker
     """
 
-
-"""
     from optparse import OptionParser
 
     usage  = "usage: %prog [options] [args]"
@@ -207,7 +205,7 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-
+    # TODO: adapt it for ASO
     if not options.config:
         raise ConfigException("Configuration not found")
 
@@ -216,9 +214,9 @@ if __name__ == '__main__':
     if not status_:
         raise ConfigException(msg_)
 
-    mw = MasterWorker(configuration, quiet=options.quiet, debug=options.debug)
+    mw = Getter(configuration, quiet=options.quiet, debug=options.debug)
     signal.signal(signal.SIGINT, mw.quit_)
     signal.signal(signal.SIGTERM, mw.quit_)
     mw.algorithm()
     mw.slaves.end()
-"""
+
