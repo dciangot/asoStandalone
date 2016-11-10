@@ -101,8 +101,8 @@ def processWorkerLoop(lfns, source, dest, procnum, logger, fts3, tfc_map):
 
     job = fts3.new_job(transfers)
 
+    # TODO: register jobid, lfns, user per monitor
     t1 = time.time()
-
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
     return 0
 
@@ -116,7 +116,6 @@ def processWorker(inputs, procnum, config):
        :return: default returning zero, but not really needed."""
     logger = setProcessLogger(str(procnum))
     logger.info("Process %s is starting. PID %s", procnum, os.getpid())
-    # input: lfns, _user, source, dest, active_lfns
     lfns, _user, source, dest, active_lfns, tfc_map = inputs
     [user, group, role] = _user
 
