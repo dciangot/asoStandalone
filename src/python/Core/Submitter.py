@@ -54,7 +54,7 @@ def removeTaskLogHandler(logger, taskhandler):
     logger.removeHandler(taskhandler)
 
 
-def apply_tfc_to_lfn(file, tfc_map, logger):
+def apply_tfc_to_lfn(file=tuple(), tfc_map, logger):
     """
     Take a CMS_NAME:lfn string and make a pfn.
     Update pfn_to_lfn_mapping dictionary.
