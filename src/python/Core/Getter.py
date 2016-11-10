@@ -5,6 +5,7 @@
 - update status
 """
 from RESTInteractions import HTTPRequests
+from WMCore.Configuration import loadConfigurationFile
 from ServerUtilities import encodeRequest, oracleOutputMapping
 from MultiProcessingLog import MultiProcessingLog
 from TaskWorker.Worker import setProcessLogger
@@ -13,6 +14,7 @@ import logging
 import sys
 import os
 import signal
+import time
 
 
 class Getter(object):
@@ -42,6 +44,8 @@ class Getter(object):
                     print(str(ose))
                     print("The task worker need to access the '%s' directory" % dirname)
                     sys.exit(1)
+
+        self.TEST = False
 
         def setRootLogger(quiet, debug):
             """Sets the root logger with the desired verbosity level
@@ -106,7 +110,7 @@ class Getter(object):
                         active_lfns = active_lfns + lfns
                         self.slaves.injectWorks(lfns, _user, source, dest, active_lfns)
 
-            sleep(60)
+            time.sleep(60)
 
         # TODO: store tfc rules, and remove from list lfn completed
         # for now inputs are just: lfns, dest, source, proxyPath
@@ -170,10 +174,6 @@ class Getter(object):
 
         active_sites_dest = [x['destination'] for x in self.documents]
         active_sites = active_sites_dest + [x['source'] for x in self.documents]
-        try:
-            self.kibana_file.write(self.doc_acq + "\n")
-        except Exception as ex:
-            self.logger.error(ex)
 
         self.logger.debug('Active sites are: %s' % list(set(active_sites)))
         return list(set(active_sites)), active_users
@@ -215,10 +215,11 @@ if __name__ == '__main__':
     if not options.config:
         raise
 
-    configuration = loadConfigurationFile( os.path.abspath(options.config) )
-    status_, msg_ = validateConfig(configuration)
-    if not status_:
-        raise
+    configuration = loadConfigurationFile(os.path.abspath(options.config))
+    # TODO:
+    # status_, msg_ = validateConfig(configuration)
+    # if not status_:
+    #     raise
 
     mw = Getter(configuration, quiet=options.quiet, debug=options.debug)
     signal.signal(signal.SIGINT, mw.quit_)
