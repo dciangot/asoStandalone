@@ -23,10 +23,11 @@ from TaskWorker.WorkerExceptions import WorkerHandlerException
 import fts3.rest.client.easy as fts3
 from datetime import timedelta
 
-from Database import update
+from Core.Database import update
 
 from Core import getProxy
 from Core import getHashLfn
+
 
 def addTaskLogHandler(logger, username):
     # set the logger to save the tasklog
@@ -35,8 +36,8 @@ def addTaskLogHandler(logger, username):
     try:
         os.mkdir(taskdirname)
     except OSError as ose:
-        if ose.errno != 17: #ignore the "Directory already exists error" but print other errors traces
-            logger.exception("Cannot set task handler logfile for task %s. Ignoring and continuing normally." % taskname)
+        if ose.errno != 17:
+            logger.exception("Cannot set task handler logfile for task %s. Ignoring and continuing normally." % username)
     taskhandler = FileHandler(taskdirname + username + '.log')
     taskhandler.setFormatter(formatter)
     taskhandler.setLevel(logging.DEBUG)
@@ -84,6 +85,7 @@ def setProcessLogger(name):
     logger.addHandler(handler)
 
     return logger
+
 
 class Submitter(object):
     """Worker class providing all the functionalities to manage all the slaves
