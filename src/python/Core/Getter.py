@@ -85,8 +85,8 @@ class Getter(object):
         self.doc_acq = ''
         self.STOP = False
         self.logger = setRootLogger(quiet, debug)
-        self.slaves = Submitter()
         self.config = config
+        self.slaves = Submitter(self.config)
         self.slaves.begin()
 
     def algorithm(self):
@@ -108,7 +108,9 @@ class Getter(object):
                                 if x['source'] == source and x['dest'] == dest and x['username'] == _user[0] and
                                 x not in active_lfns]
                         active_lfns = active_lfns + lfns
-                        self.slaves.injectWorks(lfns, _user, source, dest, active_lfns)
+
+                        # TODO: add TFCMAP
+                        self.slaves.injectWorks((lfns, _user, source, dest, active_lfns, tfc_map))
 
             time.sleep(60)
 
