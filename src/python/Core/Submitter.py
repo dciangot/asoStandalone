@@ -102,6 +102,7 @@ def processWorkerLoop(lfns, source, dest, procnum, logger, fts3, tfc_map):
     job = fts3.new_job(transfers)
 
     t1 = time.time()
+
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
     return 0
 
@@ -168,6 +169,9 @@ def processWorker(inputs, procnum, config):
         # pylint: disable=bare-except
         # if enything happen put the log inside process logfiles instead of nohup.log
         logger.exception("Unexpected error in process worker!")
+
+    # TODO: update docs in bunch
+
     logger.debug("Slave %s exiting.", procnum)
     return 0
 
