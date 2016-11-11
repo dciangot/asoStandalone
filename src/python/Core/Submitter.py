@@ -54,7 +54,7 @@ def removeTaskLogHandler(logger, taskhandler):
     logger.removeHandler(taskhandler)
 
 
-def apply_tfc_to_lfn(file=tuple(), tfc_map, logger):
+def apply_tfc_to_lfn(tfc_map, logger, file=tuple()):
     """
     Take a CMS_NAME:lfn string and make a pfn.
     Update pfn_to_lfn_mapping dictionary.
@@ -92,19 +92,34 @@ def processWorkerLoop(lfns, source, dest, procnum, logger, fts3, tfc_map):
 
     transfers = list()
 
-    # TODO: Exception
+    failed_lfn = list()
+    submitted_lfn = list()
+    # TODO: Exception and group lfns!
     for lfn in lfns:
         print(lfn)
-        transfers.append(fts3.new_transfer(apply_tfc_to_lfn((source, lfn), tfc_map, logger),
-                                           apply_tfc_to_lfn((dest, lfn), tfc_map, logger))
-                         )
+        try:
+            transfers.append(fts3.new_transfer(apply_tfc_to_lfn(tfc_map, logger, (source, lfn)),
+                                               apply_tfc_to_lfn(tfc_map, logger, (source, lfn)))
+                             )
+        except Exception:
+            logger.exception("Error creating new transfer")
+            failed_lfn.append(lfn)
+            continue
 
-    job = fts3.new_job(transfers)
+        submitted_lfn.append(lfn)
+
+    try:
+        job = fts3.new_job(transfers)
+        # TODO: use different fts3 exceptions
+    except Exception:
+        logger.exception("Error submitting jobs to fts")
+        failed_lfn = lfns
+        del submitted_lfn
 
     # TODO: register jobid, lfns, user per monitor
     t1 = time.time()
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
-    return 0
+    return failed_lfn, submitted_lfn
 
 
 def processWorker(inputs, procnum, config):
@@ -163,14 +178,20 @@ def processWorker(inputs, procnum, config):
     logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
 
     try:
-        processWorkerLoop(lfns, source, dest, procnum, logger, fts3, tfc_map)
+        failed_lfn, submitted_lfn = processWorkerLoop(lfns, source, dest, procnum, logger, fts3, tfc_map)
     except Exception:
-        # pylint: disable=bare-except
-        # if enything happen put the log inside process logfiles instead of nohup.log
         logger.exception("Unexpected error in process worker!")
+        return 1
 
-    # TODO: update docs in bunch
+    try:
+        update.failed(failed_lfn, submission=True)
+        update.submitted(submitted_lfn)
+    except Exception:
+        logger.exception("Error updating document status")
+        return 1
 
+    for lfn in lfns:
+        active_lfns.remove(lfn)
     logger.debug("Slave %s exiting.", procnum)
     return 0
 
@@ -180,7 +201,8 @@ def setProcessLogger(name):
         can be retrieved with logging.getLogger(name) in other parts of the code
     """
     logger = logging.getLogger(name)
-    handler = TimedRotatingFileHandler('logs/processes/proc.c3id_%s.pid_%s.txt' % (name, os.getpid()), 'midnight', backupCount=30)
+    handler = TimedRotatingFileHandler('logs/processes/proc.c3id_%s.pid_%s.txt' %
+                                       (name, os.getpid()), 'midnight', backupCount=30)
     formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(module)s:%(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -227,7 +249,7 @@ class Submitter(object):
                 # Each subprocess will work on one stop message and exit
                 self.logger.debug("Putting stop message in the queue for %s " % str(p))
                 self.inputs.put(('-1', 'STOP', 'control', 'STOPFAILED', []))
-            except Exception as ex: #pylint: disable=broad-except
+            except Exception as ex:
                 msg =  "Hit some exception in deletion\n"
                 msg += str(ex)
                 self.logger.error(msg)
@@ -235,8 +257,8 @@ class Submitter(object):
         for p in self.pool:
             try:
                 p.join()
-            except Exception as ex: #pylint: disable=broad-except
-                msg =  "Hit some exception in join\n"
+            except Exception as ex:
+                msg = "Hit some exception in join\n"
                 msg += str(ex)
                 self.logger.error(msg)
         self.logger.info('Subprocesses ended!')

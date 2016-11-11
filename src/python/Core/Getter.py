@@ -8,13 +8,25 @@ from RESTInteractions import HTTPRequests
 from WMCore.Configuration import loadConfigurationFile
 from ServerUtilities import encodeRequest, oracleOutputMapping
 from MultiProcessingLog import MultiProcessingLog
-from TaskWorker.Worker import setProcessLogger
+from Core.Submitter import setProcessLogger
+from WMCore.Storage.TrivialFileCatalog import readTFC
 from Core import Submitter
 import logging
 import sys
 import os
 import signal
 import time
+
+
+def chunks(l, n):
+    """
+    Yield successive n-sized chunks from l.
+    :param l:
+    :param n:
+    :return:
+    """
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
 
 class Getter(object):
@@ -101,6 +113,12 @@ class Getter(object):
         while not self.STOP:
             sites, users = self.oracleSiteUser(self.oracleDB)
 
+            site_tfc_map = dict()
+            for site in sites:
+                if site and str(site) != 'None' and str(site) != 'unknown':
+                    site_tfc_map[site] = self.get_tfc_rules(site)
+                    self.logger.debug('tfc site: %s %s' % (site, self.get_tfc_rules(site)))
+
             for _user in users:
                 for source in sites:
                     for dest in sites:
@@ -109,8 +127,8 @@ class Getter(object):
                                 x not in active_lfns]
                         active_lfns = active_lfns + lfns
 
-                        # TODO: add TFCMAP
-                        self.slaves.injectWorks((lfns, _user, source, dest, active_lfns, tfc_map))
+                        for files in chunks(lfns, self.config.files_per_job):
+                            self.slaves.injectWorks((files, _user, source, dest, active_lfns, site_tfc_map))
 
             time.sleep(60)
 
@@ -179,6 +197,22 @@ class Getter(object):
 
         self.logger.debug('Active sites are: %s' % list(set(active_sites)))
         return list(set(active_sites)), active_users
+
+    def get_tfc_rules(self, site):
+        """
+        Get the TFC regexp for a given site.
+        """
+        tfc_file = None
+        try:
+            self.phedex.getNodeTFC(site)
+        except Exception as e:
+            self.logger.exception('PhEDEx exception: %s' % e)
+        try:
+            tfc_file = self.phedex.cacheFileName('tfc',
+                                                 inputdata={'node': site})
+        except Exception as e:
+            self.logger.exception('PhEDEx cache exception: %s' % e)
+        return readTFC(tfc_file)
 
     def quit_(self, dummyCode, dummyTraceback):
         self.logger.info("Received kill request. Setting STOP flag in the master process...")
