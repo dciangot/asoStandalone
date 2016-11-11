@@ -11,7 +11,7 @@ from MultiProcessingLog import MultiProcessingLog
 from WMCore.Services.PhEDEx.PhEDEx import PhEDEx
 from Core import getDNFromUserName
 from Core import getProxy
-from threading import Thread
+from threading import Thread, Lock
 from datetime import timedelta
 import fts3.rest.client.easy as fts3
 from WMCore.Storage.TrivialFileCatalog import readTFC
@@ -24,6 +24,7 @@ import Queue
 import re
 from Core.Database import update
 from Core import setProcessLogger, chunks, Submission
+
 
 class Getter(object):
     """
@@ -73,7 +74,7 @@ class Getter(object):
                 # if we are testing log to the console is easier
                 logging.getLogger().addHandler(logging.StreamHandler())
             else:
-                logHandler = MultiProcessingLog('logs/asolog.txt', when='midnight')
+                logHandler = MultiProcessingLog('logs/submitter.txt', when='midnight')
                 logFormatter = \
                     logging.Formatter("%(asctime)s:%(levelname)s:%(module)s:%(message)s")
                 logHandler.setFormatter(logFormatter)
@@ -96,7 +97,6 @@ class Getter(object):
         except Exception as e:
             self.logger.exception('PhEDEx exception: %s' % e)
 
-
         self.documents = {}
         self.doc_acq = ''
         self.STOP = False
@@ -110,13 +110,14 @@ class Getter(object):
         - Get Users
         - Get Source dest
         - create queue for each (user, link)
-        - create subprocesses
+        - create thread
         """
-
+        workers = list()
         for i in range(self.config.max_threads_num):
             worker = Thread(target=self.worker, args=(i, self.q))
             worker.setDaemon(True)
             worker.start()
+            workers.append(worker)
 
         while not self.STOP:
             sites, users = self.oracleSiteUser(self.oracleDB)
@@ -140,6 +141,9 @@ class Getter(object):
                             self.q.put((files, _user, source, dest, self.active_lfns, site_tfc_map))
 
             time.sleep(60)
+
+        for w in workers:
+            w.join()
 
         self.logger.info('Submitter stopped.')
 
@@ -232,75 +236,87 @@ class Getter(object):
         """
         logger = setProcessLogger(str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
+        lock = Lock()
 
-        try:
-            lfns, _user, source, dest, active_lfns, tfc_map = inputs.get()
-            [user, group, role] = _user
-        except (EOFError, IOError):
-            crashMessage = "Hit EOF/IO in getting new work\n"
-            crashMessage += "Assuming this is a graceful break attempt.\n"
-            self.logger.error(crashMessage)
+        while not self.STOP:
+            try:
+                lfns, _user, source, dest, active_lfns, tfc_map = inputs.get()
+                [user, group, role] = _user
+            except (EOFError, IOError):
+                crashMessage = "Hit EOF/IO in getting new work\n"
+                crashMessage += "Assuming this is a graceful break attempt.\n"
+                self.logger.error(crashMessage)
 
-        try:
-            userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
-        except Exception as ex:
-            self.logger.exception()
-            for lfn in lfns:
-                self.active_lfns.remove(lfn)
+            try:
+                userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
+            except Exception as ex:
+                self.logger.exception()
+                lock.acquire()
+                for lfn in lfns:
+                    self.active_lfns.remove(lfn)
+                lock.release()
 
-        defaultDelegation = {'logger': self.logger,
-                             'credServerPath': self.config.credentialDir,
-                             'myProxySvr': 'myproxy.cern.ch',
-                             'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
-                             'serverDN': self.config.serverDN,
-                             'uisource': '',
-                             'cleanEnvironment': getattr(self.config, 'cleanEnvironment', False)}
+            defaultDelegation = {'logger': self.logger,
+                                 'credServerPath': self.config.credentialDir,
+                                 'myProxySvr': 'myproxy.cern.ch',
+                                 'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
+                                 'serverDN': self.config.serverDN,
+                                 'uisource': '',
+                                 'cleanEnvironment': getattr(self.config, 'cleanEnvironment', False)}
 
-        cache_area = self.config.cache_area
+            cache_area = self.config.cache_area
 
-        try:
-            defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
-        except IndexError:
-            logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
-        if getattr(self.config, 'serviceCert', None):
-            defaultDelegation['server_cert'] = self.config.serviceCert
-        if getattr(self.config, 'serviceKey', None):
-            defaultDelegation['server_key'] = self.config.serviceKey
+            try:
+                defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
+            except IndexError:
+                logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
+            if getattr(self.config, 'serviceCert', None):
+                defaultDelegation['server_cert'] = self.config.serviceCert
+            if getattr(self.config, 'serviceKey', None):
+                defaultDelegation['server_key'] = self.config.serviceKey
 
-        try:
-            defaultDelegation['userDN'] = userDN
-            defaultDelegation['group'] = group
-            defaultDelegation['role'] = role
-            logger.debug('delegation: %s' % defaultDelegation)
-            valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
-        except Exception:
-            self.logger.exception()
-            for lfn in lfns:
-                self.active_lfns.remove(lfn)
+            try:
+                defaultDelegation['userDN'] = userDN
+                defaultDelegation['group'] = group
+                defaultDelegation['role'] = role
+                logger.debug('delegation: %s' % defaultDelegation)
+                valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
+            except Exception:
+                self.logger.exception()
+                lock.acquire()
+                for lfn in lfns:
+                    self.active_lfns.remove(lfn)
+                lock.release()
 
-        context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
-        logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
+            context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
+            logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
 
-        try:
-            update(logger, self.oracleDB, self.config).acquired(lfns)
-        except Exception:
-            logger.exception("Error updating document status")
-            for lfn in lfns:
-                self.active_lfns.remove(lfn)
+            try:
+                update(logger, self.oracleDB, self.config).acquired(lfns)
+            except Exception:
+                logger.exception("Error updating document status")
+                lock.acquire()
+                for lfn in lfns:
+                    self.active_lfns.remove(lfn)
+                lock.release()
 
-        try:
-            failed_lfn, submitted_lfn = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
-        except Exception:
-            logger.exception("Unexpected error in process worker!")
-            for lfn in lfns:
-                self.active_lfns.remove(lfn)
+            try:
+                failed_lfn, submitted_lfn = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
+            except Exception:
+                logger.exception("Unexpected error in process worker!")
+                lock.acquire()
+                for lfn in lfns:
+                    self.active_lfns.remove(lfn)
+                lock.release()
 
-        try:
-            update.failed(failed_lfn)
-        except Exception:
-            logger.exception("Error updating document status")
-            for lfn in lfns:
-                active_lfns.remove(lfn)
+            try:
+                update.failed(failed_lfn)
+            except Exception:
+                logger.exception("Error updating document status")
+                lock.acquire()
+                for lfn in lfns:
+                    active_lfns.remove(lfn)
+                lock.release()
 
         logger.debug("Worker %s exiting.", i)
 

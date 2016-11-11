@@ -2,7 +2,9 @@ from ServerUtilities import encodeRequest, oracleOutputMapping
 
 # TODO: fix marking
 
+
 class update(object):
+
     def __init__(self, logger, oracleDB, config):
         self.oracleDB = oracleDB
         self.config = config
@@ -40,7 +42,7 @@ class update(object):
                 self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
         return lfn_in_transfer, dash_rep
 
-    def mark_failed(self, files=[], force_fail=False, submission_error=False):
+    def failed(self, files=[], force_fail=False, submission_error=False):
         """
         Something failed for these files so increment the retry count
         """
