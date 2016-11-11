@@ -152,6 +152,9 @@ class Getter(object):
         1. Acquire transfers from DB
         2. Get acquired users and destination sites
         """
+
+        # TODO: flexible with other dbs
+
         fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'acquireTransfers'
@@ -301,7 +304,7 @@ class Getter(object):
                 lock.release()
 
             try:
-                failed_lfn, submitted_lfn = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
+                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
             except Exception:
                 logger.exception("Unexpected error in process worker!")
                 lock.acquire()
@@ -318,10 +321,12 @@ class Getter(object):
                     active_lfns.remove(lfn)
                 lock.release()
 
+        # TODO: write jobid somewhere
+
         logger.debug("Worker %s exiting.", i)
 
     def quit_(self, dummyCode, dummyTraceback):
-        self.logger.info("Received kill request. Setting STOP flag in the master process...")
+        self.logger.info("Received kill request. Setting STOP flag in the master and threads...")
         self.STOP = True
 
 

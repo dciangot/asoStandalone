@@ -158,4 +158,4 @@ def Submission(lfns, source, dest, procnum, logger, fts3, tfc_map):
     # TODO: register jobid, lfns, user per monitor
     t1 = time.time()
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
-    return failed_lfn, submitted_lfn
+    return failed_lfn, submitted_lfn, job
