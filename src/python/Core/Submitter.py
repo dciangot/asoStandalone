@@ -6,28 +6,16 @@
 import os
 import time
 import re
-import urllib
 import logging
 import traceback
 import multiprocessing
-from Queue import Empty
-from base64 import b64encode
-from logging import FileHandler
-from httplib import HTTPException
-from logging.handlers import TimedRotatingFileHandler
-
-from ServerUtilities import truncateError
-from RESTInteractions import HTTPRequests
-from TaskWorker.DataObjects.Result import Result
-from TaskWorker.WorkerExceptions import WorkerHandlerException
-
 import fts3.rest.client.easy as fts3
 from datetime import timedelta
-
+from Queue import Empty
+from logging import FileHandler
+from logging.handlers import TimedRotatingFileHandler
 from Core.Database import update
-
 from Core import getProxy
-from Core import getHashLfn
 from Core import getDNFromUserName
 
 
