@@ -8,26 +8,22 @@ from RESTInteractions import HTTPRequests
 from WMCore.Configuration import loadConfigurationFile
 from ServerUtilities import encodeRequest, oracleOutputMapping
 from MultiProcessingLog import MultiProcessingLog
-from Core.Submitter import setProcessLogger
+from WMCore.Services.PhEDEx.PhEDEx import PhEDEx
+from Core import getDNFromUserName
+from Core import getProxy
+from threading import Thread
+from datetime import timedelta
+import fts3.rest.client.easy as fts3
 from WMCore.Storage.TrivialFileCatalog import readTFC
-from Core import Submitter
 import logging
 import sys
 import os
 import signal
 import time
-
-
-def chunks(l, n):
-    """
-    Yield successive n-sized chunks from l.
-    :param l:
-    :param n:
-    :return:
-    """
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
-
+import Queue
+import re
+from Core.Database import update
+from Core import setProcessLogger, chunks, Submission
 
 class Getter(object):
     """
@@ -93,13 +89,21 @@ class Getter(object):
             logger.debug("Logging level initialized to %s.", loglevel)
             return logger
 
+        try:
+            self.phedex = PhEDEx(responseType='xml',
+                                 dict={'key':self.config.opsProxy,
+                                       'cert':self.config.opsProxy})
+        except Exception as e:
+            self.logger.exception('PhEDEx exception: %s' % e)
+
+
         self.documents = {}
         self.doc_acq = ''
         self.STOP = False
         self.logger = setRootLogger(quiet, debug)
         self.config = config
-        self.slaves = Submitter(self.config)
-        self.slaves.begin()
+        self.q = Queue()
+        self.active_lfns = []
 
     def algorithm(self):
         """
@@ -109,7 +113,11 @@ class Getter(object):
         - create subprocesses
         """
 
-        active_lfns = []
+        for i in range(self.config.max_threads_num):
+            worker = Thread(target=self.worker, args=(i, self.q))
+            worker.setDaemon(True)
+            worker.start()
+
         while not self.STOP:
             sites, users = self.oracleSiteUser(self.oracleDB)
 
@@ -124,16 +132,16 @@ class Getter(object):
                     for dest in sites:
                         lfns = [x['lfn'] for x in self.documents
                                 if x['source'] == source and x['dest'] == dest and x['username'] == _user[0] and
-                                x not in active_lfns]
-                        active_lfns = active_lfns + lfns
+                                x not in self.active_lfns]
+                        self.active_lfns = self.active_lfns + lfns
+                        # IMPORTANT: remove only on final states
 
                         for files in chunks(lfns, self.config.files_per_job):
-                            self.slaves.injectWorks((files, _user, source, dest, active_lfns, site_tfc_map))
+                            self.q.put((files, _user, source, dest, self.active_lfns, site_tfc_map))
 
             time.sleep(60)
 
-        # TODO: store tfc rules, and remove from list lfn completed
-        # for now inputs are just: lfns, dest, source, proxyPath
+        self.logger.info('Submitter stopped.')
 
     def oracleSiteUser(self, db):
         """
@@ -214,9 +222,92 @@ class Getter(object):
             self.logger.exception('PhEDEx cache exception: %s' % e)
         return readTFC(tfc_file)
 
+    def worker(self, i, inputs):
+        """
+
+        :param inputs:
+        :param procnum:
+        :param config:
+        :return:
+        """
+        logger = setProcessLogger(str(i))
+        logger.info("Process %s is starting. PID %s", i, os.getpid())
+
+        try:
+            lfns, _user, source, dest, active_lfns, tfc_map = inputs.get()
+            [user, group, role] = _user
+        except (EOFError, IOError):
+            crashMessage = "Hit EOF/IO in getting new work\n"
+            crashMessage += "Assuming this is a graceful break attempt.\n"
+            self.logger.error(crashMessage)
+
+        try:
+            userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
+        except Exception as ex:
+            self.logger.exception()
+            for lfn in lfns:
+                self.active_lfns.remove(lfn)
+
+        defaultDelegation = {'logger': self.logger,
+                             'credServerPath': self.config.credentialDir,
+                             'myProxySvr': 'myproxy.cern.ch',
+                             'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
+                             'serverDN': self.config.serverDN,
+                             'uisource': '',
+                             'cleanEnvironment': getattr(self.config, 'cleanEnvironment', False)}
+
+        cache_area = self.config.cache_area
+
+        try:
+            defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
+        except IndexError:
+            logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
+        if getattr(self.config, 'serviceCert', None):
+            defaultDelegation['server_cert'] = self.config.serviceCert
+        if getattr(self.config, 'serviceKey', None):
+            defaultDelegation['server_key'] = self.config.serviceKey
+
+        try:
+            defaultDelegation['userDN'] = userDN
+            defaultDelegation['group'] = group
+            defaultDelegation['role'] = role
+            logger.debug('delegation: %s' % defaultDelegation)
+            valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
+        except Exception:
+            self.logger.exception()
+            for lfn in lfns:
+                self.active_lfns.remove(lfn)
+
+        context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
+        logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
+
+        try:
+            update(logger, self.oracleDB, self.config).acquired(lfns)
+        except Exception:
+            logger.exception("Error updating document status")
+            for lfn in lfns:
+                self.active_lfns.remove(lfn)
+
+        try:
+            failed_lfn, submitted_lfn = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
+        except Exception:
+            logger.exception("Unexpected error in process worker!")
+            for lfn in lfns:
+                self.active_lfns.remove(lfn)
+
+        try:
+            update.failed(failed_lfn)
+        except Exception:
+            logger.exception("Error updating document status")
+            for lfn in lfns:
+                active_lfns.remove(lfn)
+
+        logger.debug("Worker %s exiting.", i)
+
     def quit_(self, dummyCode, dummyTraceback):
         self.logger.info("Received kill request. Setting STOP flag in the master process...")
         self.STOP = True
+
 
 if __name__ == '__main__':
     """
@@ -261,5 +352,4 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, mw.quit_)
     signal.signal(signal.SIGTERM, mw.quit_)
     mw.algorithm()
-    mw.slaves.end()
 
