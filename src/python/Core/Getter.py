@@ -20,7 +20,7 @@ import sys
 import os
 import signal
 import time
-import Queue
+from Queue import Queue
 import re
 from Core.Database import update
 from Core import setProcessLogger, chunks, Submission
@@ -106,7 +106,7 @@ class Getter(object):
         self.doc_acq = ''
         self.STOP = False
         self.logger = setRootLogger(quiet, debug)
-        self.q = Queue.Queue()
+        self.q = Queue()
         self.active_lfns = []
 
     def algorithm(self):
