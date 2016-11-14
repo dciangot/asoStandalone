@@ -52,6 +52,7 @@ class Getter(object):
         :param debug:
         :param test:
         """
+        self.config = config.Getter
         self.oracleDB = HTTPRequests(self.config.oracleDB,
                                      self.config.opsProxy,
                                      self.config.opsProxy)
@@ -71,7 +72,6 @@ class Getter(object):
 
             createLogdir('logs')
             createLogdir('logs/processes')
-            createLogdir('logs/tasks')
 
             if self.TEST:
                 # if we are testing log to the console is easier
@@ -95,8 +95,8 @@ class Getter(object):
 
         try:
             self.phedex = PhEDEx(responseType='xml',
-                                 dict={'key':self.config.opsProxy,
-                                       'cert':self.config.opsProxy})
+                                 dict={'key': self.config.opsProxy,
+                                       'cert': self.config.opsProxy})
         except Exception as e:
             self.logger.exception('PhEDEx exception: %s' % e)
 
@@ -104,8 +104,7 @@ class Getter(object):
         self.doc_acq = ''
         self.STOP = False
         self.logger = setRootLogger(quiet, debug)
-        self.config = config
-        self.q = Queue()
+        self.q = Queue.Queue()
         self.active_lfns = []
 
     def algorithm(self):
