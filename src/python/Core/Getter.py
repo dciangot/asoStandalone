@@ -341,7 +341,7 @@ class Getter(object):
                 continue
 
             try:
-                createLogdir('Monitor'+user)
+                createLogdir('Monitor/'+user)
                 with open(str(jobid)+'.txt', 'w') as outfile:
                     json.dump(lfns, outfile)
             except Exception:
@@ -398,4 +398,3 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, mw.quit_)
     signal.signal(signal.SIGTERM, mw.quit_)
     mw.algorithm()
-
