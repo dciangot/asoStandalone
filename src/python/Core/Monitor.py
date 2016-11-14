@@ -26,7 +26,7 @@ for folder in os.listdir('Monitor'):
         toMonitor.append(user)
 
 
-#def worker per user
+# def worker per user + if ended reporter and cleaner
 for job in os.listdir('Monitor/' + user):
     job = job.split('.')[0]
 context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
