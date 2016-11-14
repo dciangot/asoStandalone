@@ -36,7 +36,7 @@ def execute_command(command):
     return stdout, stderr, rc
 
 
-def getDNFromUserName(username, log, ckey = None, cert = None):
+def getDNFromUserName(username, log, ckey=None, cert=None):
     """
     Parse site string to know the fts server to use
     """
@@ -69,6 +69,7 @@ def getProxy(defaultDelegation, log):
         return True, proxyPath
     return False, None
 
+
 def setProcessLogger(name):
     """ Set the logger for a single process. The file used for it is logs/processes/proc.name.txt and it
         can be retrieved with logging.getLogger(name) in other parts of the code
@@ -100,8 +101,8 @@ def apply_tfc_to_lfn(tfc_map, logger, file=tuple()):
     """
     try:
         site, lfn = file
-    except:
-        logger.error('it does not seem to be an lfn %s' % file.split(':'))
+    except Exception:
+        logger.error('it does not seem to be an lfn %s' % lfn)
         return None
     if site in tfc_map:
         pfn = tfc_map[site].matchLFN('srmv2', lfn)
@@ -133,12 +134,11 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
 
     failed_lfn = list()
     submitted_lfn = list()
-    # TODO: Exception and group lfns!
     for lfn in lfns:
         print(lfn)
         try:
-            transfers.append(fts3.new_transfer(apply_tfc_to_lfn(tfc_map, logger, (source, lfn)),
-                                               apply_tfc_to_lfn(tfc_map, logger, (dest, lfn)))
+            transfers.append(fts3.new_transfer(apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0])),
+                                               apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1])))
                              )
         except Exception:
             logger.exception("Error creating new transfer")

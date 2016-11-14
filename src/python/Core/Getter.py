@@ -26,6 +26,8 @@ from Core.Database import update
 from Core import setProcessLogger, chunks, Submission
 import json
 
+# TODO: comment threading and docstring
+
 
 def createLogdir(dirname):
     """ Create the directory dirname ignoring errors in case it exists. Exit if
@@ -133,7 +135,7 @@ class Getter(object):
             for _user in users:
                 for source in sites:
                     for dest in sites:
-                        lfns = [x['lfn'] for x in self.documents
+                        lfns = [[x['source_lfn'], x['destination_lfn']] for x in self.documents
                                 if x['source'] == source and x['dest'] == dest and x['username'] == _user[0] and
                                 x not in self.active_lfns]
                         self.active_lfns = self.active_lfns + lfns
@@ -155,7 +157,7 @@ class Getter(object):
         2. Get acquired users and destination sites
         """
 
-        # TODO: flexible with other dbs
+        # TODO: flexible with other DBs
 
         fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
@@ -197,7 +199,9 @@ class Getter(object):
 
         try:
             unique_users = [list(i) for i in
-                            set(tuple([x['username'], x['user_group'], x['user_role']]) for x in self.documents)]
+                            set(tuple([x['username'],
+                                       x['user_group'],
+                                       x['user_role']]) for x in self.documents)]
         except Exception as ex:
             self.logger.error("Failed to map active users: %s" % ex)
 
@@ -234,9 +238,8 @@ class Getter(object):
     def worker(self, i, inputs):
         """
 
+        :param i:
         :param inputs:
-        :param procnum:
-        :param config:
         :return:
         """
         logger = setProcessLogger(str(i))
@@ -251,6 +254,7 @@ class Getter(object):
                 crashMessage = "Hit EOF/IO in getting new work\n"
                 crashMessage += "Assuming this is a graceful break attempt.\n"
                 self.logger.error(crashMessage)
+                continue
 
             try:
                 userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
@@ -260,6 +264,7 @@ class Getter(object):
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
                 lock.release()
+                continue
 
             defaultDelegation = {'logger': self.logger,
                                  'credServerPath': self.config.credentialDir,
@@ -292,9 +297,18 @@ class Getter(object):
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
                 lock.release()
+                continue
 
-            context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
-            logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
+            try:
+                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
+                logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
+            except Exception:
+                logger.exception("Error submitting to FTS")
+                lock.acquire()
+                for lfn in lfns:
+                    self.active_lfns.remove(lfn)
+                lock.release()
+                continue
 
             try:
                 update(logger, self.oracleDB, self.config).acquired(lfns)
@@ -304,6 +318,7 @@ class Getter(object):
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
                 lock.release()
+                continue
 
             try:
                 failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, logger, fts3, context, tfc_map)
@@ -313,6 +328,7 @@ class Getter(object):
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
                 lock.release()
+                continue
 
             try:
                 update.failed(failed_lfn)
@@ -322,18 +338,19 @@ class Getter(object):
                 for lfn in lfns:
                     active_lfns.remove(lfn)
                 lock.release()
+                continue
 
-        # TODO: write user_jobid.json somewhere
-        try:
-            createLogdir('Monitor'+user)
-            with open(str(jobid)+'.txt', 'w') as outfile:
-                json.dump(lfns, outfile)
-        except Exception:
-            logger.exception("Error creating file for monitor")
-            lock.acquire()
-            for lfn in lfns:
-                active_lfns.remove(lfn)
-            lock.release()
+            try:
+                createLogdir('Monitor'+user)
+                with open(str(jobid)+'.txt', 'w') as outfile:
+                    json.dump(lfns, outfile)
+            except Exception:
+                logger.exception("Error creating file for monitor")
+                lock.acquire()
+                for lfn in lfns:
+                    active_lfns.remove(lfn)
+                lock.release()
+                continue
 
         logger.debug("Worker %s exiting.", i)
 
@@ -371,7 +388,7 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    # TODO: adapt it for ASO
+    # TODO: adapt evaluation it for ASO
     if not options.config:
         raise
 
