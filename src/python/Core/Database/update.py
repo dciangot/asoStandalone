@@ -9,7 +9,7 @@ class update(object):
         self.config = config
         self.logger = logger
 
-    def acquired(self, files=[]):
+    def acquired(self, files):
         """
         Mark the list of files as tranferred
         """
