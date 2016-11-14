@@ -123,7 +123,7 @@ def apply_tfc_to_lfn(tfc_map, logger, file=tuple()):
         return None
 
 
-def Submission(lfns, source, dest, procnum, logger, fts3, tfc_map):
+def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
     procName = "Process-%s" % procnum
 
     t0 = time.time()
@@ -147,15 +147,17 @@ def Submission(lfns, source, dest, procnum, logger, fts3, tfc_map):
 
         submitted_lfn.append(lfn)
 
+    jobid = -1
     try:
         job = fts3.new_job(transfers)
+        jobid = fts3.submit(context, job)
         # TODO: use different fts3 exceptions
     except Exception:
         logger.exception("Error submitting jobs to fts")
         failed_lfn = lfns
         del submitted_lfn
 
-    # TODO: register jobid, lfns, user per monitor
     t1 = time.time()
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
-    return failed_lfn, submitted_lfn, job
+
+    return failed_lfn, submitted_lfn, jobid

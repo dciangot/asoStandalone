@@ -24,6 +24,20 @@ import Queue
 import re
 from Core.Database import update
 from Core import setProcessLogger, chunks, Submission
+import json
+
+
+def createLogdir(dirname):
+    """ Create the directory dirname ignoring errors in case it exists. Exit if
+        the directory cannot be created.
+    """
+    try:
+        os.mkdir(dirname)
+    except OSError as ose:
+        if ose.errno != 17:  # ignore the "Directory already exists error"
+            print(str(ose))
+            print("The worker need to access the '%s' directory" % dirname)
+            sys.exit(1)
 
 
 class Getter(object):
@@ -42,19 +56,8 @@ class Getter(object):
                                      self.config.opsProxy,
                                      self.config.opsProxy)
 
-        def createLogdir(dirname):
-            """ Create the directory dirname ignoring erors in case it exists. Exit if
-                the directory cannot be created.
-            """
-            try:
-                os.mkdir(dirname)
-            except OSError as ose:
-                if ose.errno != 17:  # ignore the "Directory already exists error"
-                    print(str(ose))
-                    print("The task worker need to access the '%s' directory" % dirname)
-                    sys.exit(1)
-
         self.TEST = False
+        createLogdir('Monitor')
 
         def setRootLogger(quiet, debug):
             """Sets the root logger with the desired verbosity level
@@ -304,7 +307,7 @@ class Getter(object):
                 lock.release()
 
             try:
-                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, logger, fts3, tfc_map)
+                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, logger, fts3, context, tfc_map)
             except Exception:
                 logger.exception("Unexpected error in process worker!")
                 lock.acquire()
@@ -321,7 +324,17 @@ class Getter(object):
                     active_lfns.remove(lfn)
                 lock.release()
 
-        # TODO: write jobid somewhere
+        # TODO: write user_jobid.json somewhere
+        try:
+            createLogdir('Monitor'+user)
+            with open(str(jobid)+'.txt', 'w') as outfile:
+                json.dump(lfns, outfile)
+        except Exception:
+            logger.exception("Error creating file for monitor")
+            lock.acquire()
+            for lfn in lfns:
+                active_lfns.remove(lfn)
+            lock.release()
 
         logger.debug("Worker %s exiting.", i)
 
@@ -364,10 +377,6 @@ if __name__ == '__main__':
         raise
 
     configuration = loadConfigurationFile(os.path.abspath(options.config))
-    # TODO:
-    # status_, msg_ = validateConfig(configuration)
-    # if not status_:
-    #     raise
 
     mw = Getter(configuration, quiet=options.quiet, debug=options.debug)
     signal.signal(signal.SIGINT, mw.quit_)
