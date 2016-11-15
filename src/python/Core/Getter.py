@@ -300,7 +300,7 @@ class Getter(object):
                 continue
 
             try:
-                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
+                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=False)
                 logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
             except Exception:
                 logger.exception("Error submitting to FTS")
