@@ -108,7 +108,7 @@ class Getter(object):
         self.logger = setRootLogger(quiet, debug)
         self.q = Queue()
         self.active_lfns = []
-        self.Update = update()
+        self.Update = update(self.logger, self.oracleDB, self.config)
 
     def algorithm(self):
         """
@@ -293,7 +293,7 @@ class Getter(object):
                 logger.debug('delegation: %s' % defaultDelegation)
                 valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
                 if not valid_proxy:
-                    update.failed([x[0] for x in lfns], submission_error=False)
+                    self.Update.failed(lfns, submission_error=False)
                     self.logger.error('Failed to retrieve user proxy... putting docs on retry')
                     continue
             except Exception:
@@ -316,7 +316,7 @@ class Getter(object):
                 continue
 
             try:
-                update(logger, self.oracleDB, self.config).acquired(lfns)
+                self.Update.acquired(lfns)
             except Exception:
                 logger.exception("Error updating document status")
                 lock.acquire()
@@ -336,7 +336,7 @@ class Getter(object):
                 continue
 
             try:
-                update(logger, self.oracleDB, self.config).failed(failed_lfn)
+                self.Update.failed(failed_lfn)
             except Exception:
                 logger.exception("Error updating document status")
                 lock.acquire()
