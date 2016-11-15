@@ -330,7 +330,7 @@ class Getter(object):
                 continue
 
             try:
-                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, logger, fts3, context, tfc_map)
+                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
             except Exception:
                 logger.exception("Unexpected error in process worker!")
                 lock.acquire()
