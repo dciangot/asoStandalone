@@ -304,7 +304,7 @@ class Getter(object):
                 logger.exception()
                 lock.acquire()
                 for lfn in lfns:
-                    self.active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 
@@ -315,7 +315,7 @@ class Getter(object):
                 logger.exception("Error submitting to FTS")
                 lock.acquire()
                 for lfn in lfns:
-                    self.active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 
@@ -325,7 +325,7 @@ class Getter(object):
                 logger.exception("Error updating document status")
                 lock.acquire()
                 for lfn in lfns:
-                    self.active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 
@@ -335,7 +335,7 @@ class Getter(object):
                 logger.exception("Unexpected error in process worker!")
                 lock.acquire()
                 for lfn in lfns:
-                    self.active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 
@@ -345,7 +345,7 @@ class Getter(object):
                 logger.exception("Error updating document status")
                 lock.acquire()
                 for lfn in lfns:
-                    active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 
@@ -357,7 +357,7 @@ class Getter(object):
                 logger.exception("Error creating file for monitor")
                 lock.acquire()
                 for lfn in lfns:
-                    active_lfns.remove(lfn)
+                    self.active_lfns.remove(lfn[0])
                 lock.release()
                 continue
 

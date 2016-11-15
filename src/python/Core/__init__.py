@@ -135,8 +135,9 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
     failed_lfn = list()
     submitted_lfn = list()
     for lfn in lfns:
-        print(lfn)
         try:
+            logger.debug("%s \n %s" % (apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0])),
+                                       apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1]))))
             transfers.append(fts3.new_transfer(apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0])),
                                                apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1])))
                              )
@@ -155,7 +156,7 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
     except Exception:
         logger.exception("Error submitting jobs to fts")
         failed_lfn = lfns
-        del submitted_lfn
+        submitted_lfn = list()
 
     t1 = time.time()
     logger.debug("%s: ...work completed in %d seconds", job, t1 - t0)
