@@ -291,6 +291,8 @@ class Getter(object):
                 defaultDelegation['role'] = role
                 logger.debug('delegation: %s' % defaultDelegation)
                 valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
+                if not valid_proxy:
+                    raise
             except Exception:
                 self.logger.exception()
                 lock.acquire()
@@ -300,7 +302,7 @@ class Getter(object):
                 continue
 
             try:
-                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=False)
+                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
                 logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
             except Exception:
                 logger.exception("Error submitting to FTS")
