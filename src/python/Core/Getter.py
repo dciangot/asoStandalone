@@ -292,7 +292,9 @@ class Getter(object):
                 logger.debug('delegation: %s' % defaultDelegation)
                 valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
                 if not valid_proxy:
-                    raise Exception
+                    update.failed([x[0] for x in lfns], submission_error=False)
+                    self.logger.error('Failed to retrieve user proxy... putting docs on retry')
+                    continue
             except Exception:
                 self.logger.exception()
                 lock.acquire()
