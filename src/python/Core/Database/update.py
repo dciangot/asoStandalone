@@ -53,7 +53,7 @@ class update(object):
             docId = getHashLfn(lfn)
             self.logger.debug("Marking failed %s" % docId)
             try:
-                docbyId = self.oracleDB.get(self.config.oracleFileTrans,
+                docbyId = self.oracleDB.get(self.config.oracleUserFileTrans,
                                             data=encodeRequest({'subresource': 'getById', 'id': docId}))
             except Exception as ex:
                 self.logger.error("Error updating failed docs: %s" % ex)
