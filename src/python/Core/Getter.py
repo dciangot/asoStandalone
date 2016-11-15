@@ -249,7 +249,7 @@ class Getter(object):
         oracleDB = HTTPRequests(self.config.oracleDB,
                                 self.config.opsProxy,
                                 self.config.opsProxy)
-        Update = update(logger, oracleDB, self.config)
+        Update = update(self.logger, oracleDB, self.config)
 
         while not self.STOP:
             try:
@@ -258,20 +258,20 @@ class Getter(object):
             except (EOFError, IOError):
                 crashMessage = "Hit EOF/IO in getting new work\n"
                 crashMessage += "Assuming this is a graceful break attempt.\n"
-                self.logger.error(crashMessage)
+                logger.error(crashMessage)
                 continue
 
             try:
                 userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
             except Exception as ex:
-                self.logger.exception()
+                logger.exception()
                 lock.acquire()
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
                 lock.release()
                 continue
 
-            defaultDelegation = {'logger': self.logger,
+            defaultDelegation = {'logger': logger,
                                  'credServerPath': self.config.credentialDir,
                                  'myProxySvr': 'myproxy.cern.ch',
                                  'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
@@ -297,12 +297,11 @@ class Getter(object):
                 logger.debug('delegation: %s' % defaultDelegation)
                 valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
                 if not valid_proxy:
-                    self.logger.error('Failed to retrieve user proxy... putting docs on retry')
-
-                    self.logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
+                    logger.error('Failed to retrieve user proxy... putting docs on retry')
+                    logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
                     continue
             except Exception:
-                self.logger.exception()
+                logger.exception()
                 lock.acquire()
                 for lfn in lfns:
                     self.active_lfns.remove(lfn)
