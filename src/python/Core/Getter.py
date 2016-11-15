@@ -55,9 +55,6 @@ class Getter(object):
         :param test:
         """
         self.config = config.Getter
-        self.oracleDB = HTTPRequests(self.config.oracleDB,
-                                     self.config.opsProxy,
-                                     self.config.opsProxy)
 
         self.TEST = False
         createLogdir('Monitor')
@@ -116,6 +113,10 @@ class Getter(object):
         - create queue for each (user, link)
         - create thread
         """
+        oracleDB = HTTPRequests(self.config.oracleDB,
+                                self.config.opsProxy,
+                                self.config.opsProxy)
+
         workers = list()
         for i in range(self.config.max_threads_num):
             worker = Thread(target=self.worker, args=(i, self.q))
@@ -124,7 +125,7 @@ class Getter(object):
             workers.append(worker)
 
         while not self.STOP:
-            sites, users = self.oracleSiteUser(self.oracleDB)
+            sites, users = self.oracleSiteUser(oracleDB)
 
             site_tfc_map = dict()
             for site in sites:
@@ -245,7 +246,10 @@ class Getter(object):
         logger = setProcessLogger(str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
-        Update = update(logger, self.oracleDB, self.config)
+        oracleDB = HTTPRequests(self.config.oracleDB,
+                                self.config.opsProxy,
+                                self.config.opsProxy)
+        Update = update(logger, oracleDB, self.config)
 
         while not self.STOP:
             try:
