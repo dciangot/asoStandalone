@@ -292,7 +292,7 @@ class Getter(object):
                 logger.debug('delegation: %s' % defaultDelegation)
                 valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
                 if not valid_proxy:
-                    raise
+                    raise Exception
             except Exception:
                 self.logger.exception()
                 lock.acquire()
