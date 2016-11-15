@@ -55,11 +55,12 @@ class update(object):
             try:
                 docbyId = self.oracleDB.get(self.config.oracleUserFileTrans,
                                             data=encodeRequest({'subresource': 'getById', 'id': docId}))
+                document = oracleOutputMapping(docbyId, None)[0]
+                self.logger.debug("Document: %s" % document)
             except Exception as ex:
                 self.logger.error("Error updating failed docs: %s" % ex)
                 continue
-            document = oracleOutputMapping(docbyId, None)[0]
-            self.logger.debug("Document: %s" % document)
+
 
             fileDoc = dict()
             fileDoc['asoworker'] = self.config.asoworker
