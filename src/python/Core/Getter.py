@@ -136,7 +136,7 @@ class Getter(object):
                 for source in sites:
                     for dest in sites:
                         lfns = [[x['source_lfn'], x['destination_lfn']] for x in self.documents
-                                if x['source'] == source and x['dest'] == dest and x['username'] == _user[0] and
+                                if x['source'] == source and x['destination'] == dest and x['username'] == _user[0] and
                                 x not in self.active_lfns]
                         self.active_lfns = self.active_lfns + lfns
                         # IMPORTANT: remove only on final states
