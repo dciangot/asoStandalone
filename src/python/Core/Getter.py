@@ -299,7 +299,7 @@ class Getter(object):
                 if not valid_proxy:
                     self.logger.error('Failed to retrieve user proxy... putting docs on retry')
 
-                    self.logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=False))
+                    self.logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
                     continue
             except Exception:
                 self.logger.exception()
