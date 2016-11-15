@@ -22,7 +22,7 @@ import signal
 import time
 from Queue import Queue
 import re
-from Core.Database import update
+from Core.Database.update import update
 from Core import setProcessLogger, chunks, Submission
 import json
 
@@ -108,6 +108,7 @@ class Getter(object):
         self.logger = setRootLogger(quiet, debug)
         self.q = Queue()
         self.active_lfns = []
+        self.Update = update()
 
     def algorithm(self):
         """
@@ -335,7 +336,7 @@ class Getter(object):
                 continue
 
             try:
-                update.failed(failed_lfn)
+                update(logger, self.oracleDB, self.config).failed(failed_lfn)
             except Exception:
                 logger.exception("Error updating document status")
                 lock.acquire()
