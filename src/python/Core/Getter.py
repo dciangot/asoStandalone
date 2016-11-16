@@ -331,6 +331,7 @@ class Getter(object):
 
             try:
                 failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
+                logger.info('Submitted %s files' % len(submitted_lfn))
             except Exception:
                 logger.exception("Unexpected error in process worker!")
                 lock.acquire()
@@ -351,8 +352,9 @@ class Getter(object):
 
             try:
                 createLogdir('Monitor/'+user)
-                with open(str(jobid)+'.txt', 'w') as outfile:
+                with open('Monitor/'+user+'/'+str(jobid)+'.txt', 'w') as outfile:
                     json.dump(lfns, outfile)
+                logger.info('Monitor files created')
             except Exception:
                 logger.exception("Error creating file for monitor")
                 lock.acquire()
