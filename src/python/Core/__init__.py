@@ -136,10 +136,21 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
     submitted_lfn = list()
     for lfn in lfns:
         try:
-            logger.debug("%s \n %s" % (apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0])),
-                                       apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1]))))
-            transfers.append(fts3.new_transfer(apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0])),
-                                               apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1])))
+            source_pfn = apply_tfc_to_lfn(tfc_map, logger, (source, lfn[0]))
+            dest_pfn = apply_tfc_to_lfn(tfc_map, logger, (dest, lfn[1]))
+
+            logger.debug("%s \n %s" % (source_pfn, dest_pfn))
+
+            transfers.append(fts3.new_transfer(source_pfn,
+                                               dest_pfn,
+                                               overwrite=True,
+                                               verify_checksum=False,
+                                               metadata={"issuer": "ASO"},
+                                               copy_pin_lifetime=-1,
+                                               bring_online=None,
+                                               source_spacetoken=None,
+                                               spacetoken=None
+                                               )
                              )
         except Exception:
             logger.exception("Error creating new transfer")
