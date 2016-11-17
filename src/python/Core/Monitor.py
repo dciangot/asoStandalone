@@ -106,11 +106,13 @@ class Monitor(object):
             worker.start()
             workers.append(worker)
 
+        count = 0
         while not self.STOP:
-            self.context = fts3.Context(self.config_getter.serverFTS,
-                                   self.config_getter.opsProxy,
-                                   self.config_getter.opsProxy, verify=True)
-            self.logger.debug(fts3.delegate(self.context, lifetime=timedelta(hours=48), force=False))
+            if count == 0:
+                self.context = fts3.Context(self.config_getter.serverFTS,
+                                            self.config_getter.opsProxy,
+                                            self.config_getter.opsProxy, verify=True)
+                self.logger.debug(fts3.delegate(self.context, lifetime=timedelta(hours=48), force=False))
 
             for folder in os.listdir('Monitor'):
                 user = folder
@@ -118,6 +120,10 @@ class Monitor(object):
                 if not len(jobs) == 0 and user not in self.active_users:
                     self.active_users.append(user)
                     self.q.put(user)
+            if count < 6*60*12:  # delegate every 12h
+                count += 1
+            else:
+                count = 0
             time.sleep(10)
 
     def worker(self, i, input):
