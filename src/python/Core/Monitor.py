@@ -65,7 +65,6 @@ class Monitor(object):
             :return logger: a logger with the appropriate logger level."""
 
             createLogdir('logs')
-            createLogdir('logs/monitors')
 
             if self.TEST:
                 # if we are testing log to the console is easier
@@ -132,7 +131,7 @@ class Monitor(object):
                                 self.config_getter.opsProxy,
                                 self.config_getter.opsProxy)
 
-        logger = setProcessLogger(str(i))
+        logger = setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
         Update = update(logger, oracleDB, self.config)
