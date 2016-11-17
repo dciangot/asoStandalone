@@ -120,7 +120,7 @@ class Monitor(object):
                 if not len(jobs) == 0 and user not in self.active_users:
                     self.active_users.append(user)
                     self.q.put(user)
-                elif len(jobs) == 0:
+                elif len(jobs) == 0 and user in self.active_users:
                     self.active_users.remove(user)
 
             if count < 6*60*12:  # delegate every 12h
