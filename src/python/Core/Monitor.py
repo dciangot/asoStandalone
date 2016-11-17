@@ -188,7 +188,7 @@ class Monitor(object):
                         logger.exception('Failed to update states')
                         continue
 
-                os.rename('Monitor/' + user + File, 'Monitor/Done/' + File)
+                os.rename('Monitor/' + user + '/' + File, 'Monitor/Done/' + File)
 
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
