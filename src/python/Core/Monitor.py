@@ -166,7 +166,8 @@ class Monitor(object):
                     failed_lfn = list()
                     failed_reasons = list()
                     done_lfn = list()
-                    for Fl, lfn in results['files'], lfns:
+                    for Fl in results['files']:
+                        lfn = lfns[results['files'].index(Fl)]
                         if Fl['file_state'] == 'FINISHED':
                             done_lfn.append(lfn)
                         else:
