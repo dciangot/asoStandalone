@@ -143,13 +143,7 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
 
             transfers.append(fts3.new_transfer(source_pfn,
                                                dest_pfn,
-                                               overwrite=True,
-                                               verify_checksum=False,
-                                               metadata={"issuer": "ASO"},
-                                               copy_pin_lifetime=-1,
-                                               bring_online=None,
-                                               source_spacetoken=None,
-                                               spacetoken=None
+                                               metadata={'lfn': lfn}
                                                )
                              )
         except Exception:
@@ -161,7 +155,16 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
 
     jobid = -1
     try:
-        job = fts3.new_job(transfers)
+        job = fts3.new_job(transfers,
+                           overwrite=True,
+                           verify_checksum=False,
+                           metadata={"issuer": "ASO"},
+                           copy_pin_lifetime=-1,
+                           bring_online=None,
+                           source_spacetoken=None,
+                           spacetoken=None
+                           )
+
         jobid = fts3.submit(context, job)
         # TODO: use different fts3 exceptions
     except Exception:

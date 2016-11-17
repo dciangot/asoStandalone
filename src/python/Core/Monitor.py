@@ -159,14 +159,6 @@ class Monitor(object):
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
                 results = fts3.get_job_status(self.context, job, list_files=True)
-                lfns = json.loads(open('Monitor/' + user + '/' + File).read())
-                if not len(results['files']) == len(lfns):
-                    try:
-                        logger.error('number of files are not compatible, marking everything as failed')
-                        Update.failed(lfns)
-                    except Exception:
-                        logger.exception('Failed to update status')
-                    continue
 
                 if results['job_state'] in ('FINISHED',
                                             'FAILED',
@@ -177,7 +169,7 @@ class Monitor(object):
                     failed_reasons = list()
                     done_lfn = list()
                     for Fl in results['files']:
-                        lfn = lfns[results['files'].index(Fl)]
+                        lfn = json.loads(Fl['metadata'])['lfns']
                         if Fl['file_state'] == 'FINISHED':
                             done_lfn.append(lfn)
                         else:
