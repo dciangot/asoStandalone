@@ -169,7 +169,7 @@ class Monitor(object):
                     failed_reasons = list()
                     done_lfn = list()
                     for Fl in results['files']:
-                        lfn = json.loads(Fl['file_metadata'])['lfns']
+                        lfn = Fl['file_metadata']['lfns']
                         if Fl['file_state'] == 'FINISHED':
                             done_lfn.append(lfn)
                         else:
