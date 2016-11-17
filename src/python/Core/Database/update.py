@@ -9,6 +9,39 @@ class update(object):
         self.config = config
         self.logger = logger
 
+    def transferred(self, files):
+        """
+        Mark the list of files as tranferred
+        """
+        lfn_done = []
+        dash_rep = ()
+        for lfn in files:
+            lfn = lfn[0]
+            if lfn.find('temp') == 7:
+                docId = getHashLfn(lfn)
+                self.logger.debug("Marking done %s" % lfn)
+                self.logger.debug("Marking done %s" % docId)
+                try:
+                    docbyId = self.oracleDB.get(self.config.oracleFileTrans.replace('filetransfers',
+                                                                                    'fileusertransfers'),
+                                                data=encodeRequest({'subresource': 'getById', 'id': docId}))
+                    document = oracleOutputMapping(docbyId, None)[0]
+                    fileDoc = dict()
+                    fileDoc['asoworker'] = self.config.asoworker
+                    fileDoc['subresource'] = 'updateTransfers'
+                    fileDoc['list_of_ids'] = docId
+                    fileDoc['list_of_transfer_state'] = "DONE"
+
+                    result = self.oracleDB.post(self.config.oracleFileTrans,
+                                                data=encodeRequest(fileDoc))
+                except Exception as ex:
+                    self.logger.error("Error during status update: %s" %ex)
+
+                lfn_done.append(lfn)
+                dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
+                self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
+        return lfn_done, dash_rep
+
     def acquired(self, files):
         """
         Mark the list of files as tranferred
@@ -42,7 +75,7 @@ class update(object):
                 self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
         return lfn_in_transfer, dash_rep
 
-    def failed(self, files, max_retry=3, force_fail=False, submission_error=False):
+    def failed(self, files, failures_reasons=[], max_retry=3, force_fail=False, submission_error=False):
         """
         Something failed for these files so increment the retry count
         """
@@ -66,6 +99,8 @@ class update(object):
             fileDoc['asoworker'] = self.config.asoworker
             fileDoc['subresource'] = 'updateTransfers'
             fileDoc['list_of_ids'] = docId
+            if not len(failures_reasons) == 0:
+                fileDoc['list_of_failure_reason'] = failures_reasons[files.index(lfn)]
 
             if force_fail or document['transfer_retry_count'] + 1 > max_retry:
                 fileDoc['list_of_transfer_state'] = 'FAILED'

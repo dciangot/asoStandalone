@@ -16,6 +16,7 @@ getter.serverDN = 'asotest2.cern.ch'
 getter.cache_area = 'https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata'
 getter.serviceCert = '/data/certs/hostcert.pem'
 getter.serviceKey = '/data/certs/hostkey.pem'
+getter.serverFTS = 'https://fts3.cern.ch:8446'
 
 monitor = config.section_('Monitor')
 

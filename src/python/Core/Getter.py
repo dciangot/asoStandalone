@@ -99,12 +99,12 @@ class Getter(object):
         except Exception as e:
             self.logger.exception('PhEDEx exception: %s' % e)
 
-        self.documents = {}
+        self.documents = dict()
         self.doc_acq = ''
         self.STOP = False
         self.logger = setRootLogger(quiet, debug)
         self.q = Queue()
-        self.active_lfns = []
+        self.active_lfns = list()
 
     def algorithm(self):
         """
@@ -129,7 +129,7 @@ class Getter(object):
 
             site_tfc_map = dict()
             for site in sites:
-                if site and str(site) != 'None' and str(site) != 'unknown':
+                if site not in site_tfc_map and str(site) != 'None' and str(site) != 'unknown':
                     site_tfc_map[site] = self.get_tfc_rules(site)
                     self.logger.debug('tfc site: %s %s' % (site, self.get_tfc_rules(site)))
 
@@ -143,9 +143,9 @@ class Getter(object):
                         # IMPORTANT: remove only on final states
 
                         for files in chunks(lfns, self.config.files_per_job):
-                            self.q.put((files, _user, source, dest, self.active_lfns, site_tfc_map))
+                            self.q.put((files, _user, source, dest, site_tfc_map))
 
-            time.sleep(60)
+            time.sleep(10)
 
         for w in workers:
             w.join()
@@ -249,11 +249,11 @@ class Getter(object):
         oracleDB = HTTPRequests(self.config.oracleDB,
                                 self.config.opsProxy,
                                 self.config.opsProxy)
-        Update = update(self.logger, oracleDB, self.config)
+        Update = update(logger, oracleDB, self.config)
 
         while not self.STOP:
             try:
-                lfns, _user, source, dest, active_lfns, tfc_map = inputs.get()
+                lfns, _user, source, dest, tfc_map = inputs.get()
                 [user, group, role] = _user
             except (EOFError, IOError):
                 crashMessage = "Hit EOF/IO in getting new work\n"
@@ -309,7 +309,7 @@ class Getter(object):
                 continue
 
             try:
-                context = fts3.Context('https://fts3.cern.ch:8446', user_proxy, user_proxy, verify=True)
+                context = fts3.Context(self.config.serverFTS, user_proxy, user_proxy, verify=True)
                 logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
             except Exception:
                 logger.exception("Error submitting to FTS")
