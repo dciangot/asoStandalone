@@ -118,7 +118,7 @@ class Monitor(object):
                 if not len(jobs) == 0 and user not in self.active_users:
                     self.active_users.append(user)
                     self.q.put(user)
-        time.sleep(10)
+            time.sleep(10)
 
     def worker(self, i, input):
         """
