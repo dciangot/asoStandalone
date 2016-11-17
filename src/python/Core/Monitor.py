@@ -52,7 +52,7 @@ class Monitor(object):
         self.config = config.Monitor
         self.TEST = False
 
-        createLogdir('Monitor/Done')
+        createLogdir('Done')
 
         def setRootLogger(quiet, debug):
             """Sets the root logger with the desired verbosity level
@@ -190,7 +190,7 @@ class Monitor(object):
                         logger.exception('Failed to update states')
                         continue
 
-                os.rename('Monitor/' + user + '/' + File, 'Monitor/Done/' + File)
+                os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
 
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
