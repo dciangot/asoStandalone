@@ -80,8 +80,8 @@ class update(object):
         Something failed for these files so increment the retry count
         """
         updated_lfn = []
-        for lfn in files:
-            lfn = lfn[0]
+        for Lfn in files:
+            lfn = Lfn[0]
             # Load document and get the retry_count
             docId = getHashLfn(lfn)
             self.logger.debug("Marking failed %s" % docId)
@@ -100,7 +100,7 @@ class update(object):
             fileDoc['subresource'] = 'updateTransfers'
             fileDoc['list_of_ids'] = docId
             if not len(failures_reasons) == 0:
-                fileDoc['list_of_failure_reason'] = failures_reasons[files.index(lfn)]
+                fileDoc['list_of_failure_reason'] = failures_reasons[files.index(Lfn)]
 
             if force_fail or document['transfer_retry_count'] + 1 > max_retry:
                 fileDoc['list_of_transfer_state'] = 'FAILED'

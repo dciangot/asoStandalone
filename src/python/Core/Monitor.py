@@ -143,7 +143,7 @@ class Monitor(object):
                 crashMessage = "Hit EOF/IO in getting new work\n"
                 crashMessage += "Assuming this is a graceful break attempt.\n"
                 logger.error(crashMessage)
-                continue
+                break
 
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
@@ -170,6 +170,7 @@ class Monitor(object):
                         if Fl['file_state'] == 'FINISHED':
                             done_lfn.append(lfn)
                         else:
+
                             failed_lfn.append(lfn)
                             failed_reasons.append(Fl['reason'])
                     try:
@@ -183,7 +184,7 @@ class Monitor(object):
 
                 os.rename('Monitor/' + user + File, 'Monitor/Done/' + File)
 
-                logger.debug("Worker %s exiting.", i)
+        logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 
     def quit_(self, dummyCode, dummyTraceback):
