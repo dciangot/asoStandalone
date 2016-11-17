@@ -149,7 +149,7 @@ class Monitor(object):
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
                 results = fts3.get_job_status(self.context, job, list_files=True)
-                lfns = json.loads(open('Monitor/' + user + File).read())
+                lfns = json.loads(open('Monitor/' + user + '/' + File).read())
                 if not len(results['files']) == len(lfns):
                     try:
                         logger.error('number of files are not compatible, marking everything as failed')
