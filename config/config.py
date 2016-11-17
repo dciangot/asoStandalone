@@ -19,4 +19,4 @@ getter.serviceKey = '/data/certs/hostkey.pem'
 getter.serverFTS = 'https://fts3.cern.ch:8446'
 
 monitor = config.section_('Monitor')
-
+monitor.max_threads_num = 10
