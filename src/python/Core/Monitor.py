@@ -174,7 +174,7 @@ class Monitor(object):
                             failed_lfn.append(lfn)
                             failed_reasons.append(Fl['reason'])
                     try:
-                        logger.info('Marking job %s files done and % files  failed for job %s'
+                        logger.info('Marking job %s files done and %s files  failed for job %s'
                                     % (len(done_lfn), len(failed_lfn), job))
                         Update.transferred(done_lfn)
                         Update.failed(failed_lfn, failed_reasons)
