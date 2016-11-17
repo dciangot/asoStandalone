@@ -134,7 +134,7 @@ class Monitor(object):
         logger = setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
-        Update = update(logger, oracleDB, self.config)
+        Update = update(logger, oracleDB, self.config_getter)
 
         while not self.STOP:
             try:
