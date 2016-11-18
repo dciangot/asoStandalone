@@ -88,6 +88,7 @@ def submit(proxy, toTrans, source, destination):
 
 
 def main(argv):
+    # TODO: add Monitor command and publish
     inputfile = ""
     destination = ""
     source = ""

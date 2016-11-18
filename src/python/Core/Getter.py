@@ -127,6 +127,20 @@ class Getter(object):
         while not self.STOP:
             sites, users = self.oracleSiteUser(oracleDB)
 
+            fileDoc = dict()
+            fileDoc['asoworker'] = self.config.asoworker
+            fileDoc['subresource'] = 'retryTransfers'
+            fileDoc['time_to'] = self.config.cooloffTime
+            self.logger.debug('fileDoc: %s' % fileDoc)
+
+            results = dict()
+            try:
+                results = oracleDB.post(self.config.oracleFileTrans,
+                                        data=encodeRequest(fileDoc))
+            except Exception:
+                self.logger.exception("Failed to get retry transfers in oracleDB: %s")
+            logging.info("Retried files in cooloff: %s" % str(results))
+
             site_tfc_map = dict()
             for site in sites:
                 if site not in site_tfc_map and str(site) != 'None' and str(site) != 'unknown':
@@ -326,17 +340,18 @@ class Getter(object):
                 continue
 
             try:
-                Update.acquired(lfns)
-            except Exception:
-                logger.exception("Error updating document status")
-                self.critical_failure(lfns, lock, inputs)
-                continue
-
-            try:
                 failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
                 logger.info('Submitted %s files' % len(submitted_lfn))
             except Exception:
                 logger.exception("Unexpected error during FTS job submission!")
+                self.critical_failure(lfns, lock, inputs)
+                continue
+
+            # TODO: add file FTS id and job id columns for kill command
+            try:
+                Update.acquired(lfns)
+            except Exception:
+                logger.exception("Error updating document status")
                 self.critical_failure(lfns, lock, inputs)
                 continue
 
