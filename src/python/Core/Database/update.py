@@ -123,8 +123,8 @@ class update(object):
                 updated_lfn.append(docId)
                 result = self.oracleDB.post(self.config.oracleFileTrans,
                                             data=encodeRequest(fileDoc))
-            except Exception as ex:
-                self.logger.exception()
+            except Exception:
+                self.logger.exception('ERROR updating failed documents')
                 continue
         self.logger.debug("failed file updated")
         return updated_lfn
