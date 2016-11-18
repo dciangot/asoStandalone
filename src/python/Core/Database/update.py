@@ -115,7 +115,7 @@ class update(object):
                 fileDoc['list_of_failure_reason'] = "Job could not be submitted to FTS: temporary problem of FTS"
                 fileDoc['list_of_retry_value'] = 1
             else:
-                # fileDoc['list_of_failure_reason'] = "Site config problem."
+                fileDoc['list_of_failure_reason'] = "unexcpected error, missing reasons"
                 fileDoc['list_of_retry_value'] = 1
 
             self.logger.debug("update: %s" % fileDoc)
