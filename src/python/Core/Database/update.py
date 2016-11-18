@@ -103,6 +103,7 @@ class update(object):
                 try:
                     fileDoc['list_of_failure_reason'] = failures_reasons[files.index(Lfn)]
                 except:
+                    fileDoc['list_of_failure_reason'] = "unexcpected error, missing reasons"
                     self.logger.exception("missing reasons")
 
             if force_fail or document['transfer_retry_count'] + 1 > max_retry:
@@ -115,7 +116,6 @@ class update(object):
                 fileDoc['list_of_failure_reason'] = "Job could not be submitted to FTS: temporary problem of FTS"
                 fileDoc['list_of_retry_value'] = 1
             else:
-                fileDoc['list_of_failure_reason'] = "unexcpected error, missing reasons"
                 fileDoc['list_of_retry_value'] = 1
 
             self.logger.debug("update: %s" % fileDoc)
