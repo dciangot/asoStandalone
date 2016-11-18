@@ -188,9 +188,13 @@ class Monitor(object):
                         if Fl['file_state'] == 'FINISHED':
                             done_lfn.append(lfn)
                         else:
-
                             failed_lfn.append(lfn)
-                            failed_reasons.append(Fl['reason'])
+                            try:
+                                self.logger.warning('Failure reason: ' + Fl['reason'])
+                                failed_reasons.append(Fl['reason'])
+                            except:
+                                self.logger.exception('Failure reason not found')
+                                failed_reasons.append('unable to get failure reason')
 
                     try:
                         logger.info('Marking job %s files done and %s files  failed for job %s'
