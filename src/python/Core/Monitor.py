@@ -165,6 +165,7 @@ class Monitor(object):
                 logger.error(crashMessage)
                 break
 
+
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
 
@@ -200,12 +201,14 @@ class Monitor(object):
                         logger.exception('Failed to update states')
                         continue
                 try:
+                    logger.info('Removing' + 'Monitor/' + user + '/' + File)
                     os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
                 except:
                     logger.exception('failed to remove monitor file')
                     continue
 
             input.task_done()
+            self.active_users.remove(user)
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 
