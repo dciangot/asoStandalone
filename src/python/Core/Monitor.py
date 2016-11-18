@@ -204,12 +204,12 @@ class Monitor(object):
                     except Exception:
                         logger.exception('Failed to update states')
                         continue
-                try:
-                    logger.info('Removing' + 'Monitor/' + user + '/' + File)
-                    os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
-                except:
-                    logger.exception('failed to remove monitor file')
-                    continue
+                    try:
+                        logger.info('Removing' + 'Monitor/' + user + '/' + File)
+                        os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
+                    except:
+                        logger.exception('failed to remove monitor file')
+                        continue
 
             input.task_done()
             self.active_users.remove(user)
