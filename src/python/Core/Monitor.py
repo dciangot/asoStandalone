@@ -137,7 +137,6 @@ class Monitor(object):
 
         self.logger.info('Monitor stopped.')
 
-
     def worker(self, i, input):
         """
 
@@ -200,8 +199,12 @@ class Monitor(object):
                     except Exception:
                         logger.exception('Failed to update states')
                         continue
+                try:
+                    os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
+                except:
+                    logger.exception('failed to remove monitor file')
+                    continue
 
-                os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
             input.task_done()
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner

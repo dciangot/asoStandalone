@@ -167,13 +167,13 @@ class Getter(object):
 
         self.logger.debug("Retrieving transfers from oracleDB")
 
+        result = dict()
         try:
             result = db.post(self.config.oracleFileTrans,
                              data=encodeRequest(fileDoc))
         except Exception as ex:
             self.logger.error("Failed to acquire transfers \
                               from oracleDB: %s" % ex)
-            pass
 
         self.doc_acq = str(result)
 

@@ -17,6 +17,7 @@ class update(object):
         dash_rep = ()
         for lfn in files:
             lfn = lfn[0]
+            document = dict()
             if lfn.find('temp') == 7:
                 docId = getHashLfn(lfn)
                 self.logger.debug("Marking done %s" % lfn)
