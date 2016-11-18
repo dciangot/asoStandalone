@@ -167,13 +167,15 @@ class Monitor(object):
 
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
-
+                lock.acquire()
                 try:
                     results = fts3.get_job_status(self.context, job, list_files=True)
+
                     self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
                     continue
+                lock.release()
 
                 if results['job_state'] in ('FINISHED',
                                             'FAILED',
