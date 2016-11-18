@@ -165,13 +165,12 @@ class Monitor(object):
                 logger.error(crashMessage)
                 break
 
-
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
 
                 try:
-                    self.logger.info('Getting status for job: ' + job)
                     results = fts3.get_job_status(self.context, job, list_files=True)
+                    self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
                     continue
@@ -190,10 +189,10 @@ class Monitor(object):
                             done_lfn.append(lfn)
                         else:
                             failed_lfn.append(lfn)
-                            try:
+                            if Fl['reason'] is not None:
                                 self.logger.warning('Failure reason: ' + Fl['reason'])
                                 failed_reasons.append(Fl['reason'])
-                            except:
+                            else:
                                 self.logger.exception('Failure reason not found')
                                 failed_reasons.append('unable to get failure reason')
 
