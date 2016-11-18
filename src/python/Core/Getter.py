@@ -266,7 +266,8 @@ class Getter(object):
         :param inputs:
         :return:
         """
-        logger = setProcessLogger(str(i))
+        # TODO: differentiate log messages per USER!
+        logger = self.logger
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
         oracleDB = HTTPRequests(self.config.oracleDB,
