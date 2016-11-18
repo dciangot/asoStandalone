@@ -129,7 +129,14 @@ class Monitor(object):
                 count = 0
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
+            self.logger.debug('Queue lenght: %s' % self.q.qsize())
             time.sleep(10)
+
+        for w in workers:
+            w.join()
+
+        self.logger.info('Monitor stopped.')
+
 
     def worker(self, i, input):
         """
@@ -148,6 +155,9 @@ class Monitor(object):
         Update = update(logger, oracleDB, self.config_getter)
 
         while not self.STOP:
+            if input.empty():
+                time.sleep(10)
+                continue
             try:
                 user = input.get()
             except (EOFError, IOError):
@@ -158,7 +168,12 @@ class Monitor(object):
 
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
-                results = fts3.get_job_status(self.context, job, list_files=True)
+
+                try:
+                    results = fts3.get_job_status(self.context, job, list_files=True)
+                except Exception:
+                    logger.exception('Failed get job status for %s' % job)
+                    continue
 
                 if results['job_state'] in ('FINISHED',
                                             'FAILED',
@@ -187,7 +202,7 @@ class Monitor(object):
                         continue
 
                 os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
-
+            input.task_done()
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 

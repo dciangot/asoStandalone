@@ -145,6 +145,7 @@ class Getter(object):
                         for files in chunks(lfns, self.config.files_per_job):
                             self.q.put((files, _user, source, dest, site_tfc_map))
 
+            self.logger.debug('Queue lenght: %s' % self.q.qsize())
             time.sleep(10)
 
         for w in workers:
@@ -198,6 +199,7 @@ class Getter(object):
             if doc['user_group'] is None:
                 doc['user_group'] = ""
 
+        unique_users = list()
         try:
             unique_users = [list(i) for i in
                             set(tuple([x['username'],
@@ -236,6 +238,13 @@ class Getter(object):
             self.logger.exception('PhEDEx cache exception: %s' % e)
         return readTFC(tfc_file)
 
+    def critical_failure(self, lfns, lock, inputs):
+        lock.acquire()
+        for lfn in lfns:
+            self.active_lfns.remove(lfn)
+        lock.release()
+        inputs.task_done()
+
     def worker(self, i, inputs):
         """
 
@@ -252,6 +261,9 @@ class Getter(object):
         Update = update(logger, oracleDB, self.config)
 
         while not self.STOP:
+            if inputs.empty():
+                time.sleep(10)
+                continue
             try:
                 lfns, _user, source, dest, tfc_map = inputs.get()
                 [user, group, role] = _user
@@ -264,11 +276,8 @@ class Getter(object):
             try:
                 userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
             except Exception as ex:
-                logger.exception()
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn)
-                lock.release()
+                logger.exception('Cannot retrieve user DN')
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             defaultDelegation = {'logger': logger,
@@ -285,6 +294,9 @@ class Getter(object):
                 defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
             except IndexError:
                 logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
+                self.critical_failure(lfns, lock, inputs)
+                continue
+
             if getattr(self.config, 'serviceCert', None):
                 defaultDelegation['server_cert'] = self.config.serviceCert
             if getattr(self.config, 'serviceKey', None):
@@ -301,11 +313,8 @@ class Getter(object):
                     logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
                     continue
             except Exception:
-                logger.exception()
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                logger.exception('Error retrieving proxy')
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             try:
@@ -313,41 +322,29 @@ class Getter(object):
                 logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
             except Exception:
                 logger.exception("Error submitting to FTS")
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             try:
                 Update.acquired(lfns)
             except Exception:
                 logger.exception("Error updating document status")
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             try:
                 failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
                 logger.info('Submitted %s files' % len(submitted_lfn))
             except Exception:
-                logger.exception("Unexpected error in process worker!")
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                logger.exception("Unexpected error during FTS job submission!")
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             try:
                 Update.failed(failed_lfn)
             except Exception:
-                logger.exception("Error updating document status")
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                logger.exception("Error updating document status, job submission will be retried later...")
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
             try:
@@ -357,10 +354,7 @@ class Getter(object):
                 logger.info('Monitor files created')
             except Exception:
                 logger.exception("Error creating file for monitor")
-                lock.acquire()
-                for lfn in lfns:
-                    self.active_lfns.remove(lfn[0])
-                lock.release()
+                self.critical_failure(lfns, lock, inputs)
                 continue
 
         logger.debug("Worker %s exiting.", i)
