@@ -160,7 +160,7 @@ class Getter(object):
                             self.q.put((files, _user, source, dest, site_tfc_map))
 
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(10)
+            time.sleep(60)
 
         for w in workers:
             w.join()
@@ -372,6 +372,8 @@ class Getter(object):
                 logger.exception("Error creating file for monitor")
                 self.critical_failure(lfns, lock, inputs)
                 continue
+
+            time.sleep(10)
 
         logger.debug("Worker %s exiting.", i)
 

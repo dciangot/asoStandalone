@@ -130,7 +130,7 @@ class Monitor(object):
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(10)
+            time.sleep(60)
 
         for w in workers:
             w.join()
@@ -218,6 +218,7 @@ class Monitor(object):
 
             input.task_done()
             self.active_users.remove(user)
+            time.sleep(10)
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 
