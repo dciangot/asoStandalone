@@ -148,7 +148,7 @@ class Monitor(object):
                                 self.config_getter.opsProxy,
                                 self.config_getter.opsProxy)
 
-        logger = setProcessLogger('Mon'+str(i))
+        logger = self.logger  # setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
         Update = update(logger, oracleDB, self.config_getter)
@@ -170,6 +170,7 @@ class Monitor(object):
                 job = File.split('.')[0]
 
                 try:
+                    self.logger.info('Getting status for job: ' + job)
                     results = fts3.get_job_status(self.context, job, list_files=True)
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
@@ -204,6 +205,7 @@ class Monitor(object):
                     except Exception:
                         logger.exception('Failed to update states')
                         continue
+
                     try:
                         logger.info('Removing' + 'Monitor/' + user + '/' + File)
                         os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
