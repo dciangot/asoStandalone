@@ -95,13 +95,15 @@ class update(object):
                 self.logger.error("Error updating failed docs: %s" % ex)
                 continue
 
-
             fileDoc = dict()
             fileDoc['asoworker'] = self.config.asoworker
             fileDoc['subresource'] = 'updateTransfers'
             fileDoc['list_of_ids'] = docId
             if not len(failures_reasons) == 0:
-                fileDoc['list_of_failure_reason'] = failures_reasons[files.index(Lfn)]
+                try:
+                    fileDoc['list_of_failure_reason'] = failures_reasons[files.index(Lfn)]
+                except:
+                    self.logger.exception("missing reasons")
 
             if force_fail or document['transfer_retry_count'] + 1 > max_retry:
                 fileDoc['list_of_transfer_state'] = 'FAILED'
