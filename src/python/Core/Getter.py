@@ -160,7 +160,7 @@ class Getter(object):
                             self.q.put((files, _user, source, dest, site_tfc_map))
 
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(60)
+            time.sleep(30)
 
         for w in workers:
             w.join()

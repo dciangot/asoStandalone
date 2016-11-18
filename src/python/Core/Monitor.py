@@ -130,7 +130,7 @@ class Monitor(object):
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(60)
+            time.sleep(300)
 
         for w in workers:
             w.join()
