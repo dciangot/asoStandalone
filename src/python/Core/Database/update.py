@@ -13,35 +13,32 @@ class update(object):
         """
         Mark the list of files as tranferred
         """
-        lfn_done = []
-        dash_rep = ()
+        lfn_done = list()
+        dash_rep = tuple()
+        good_ids = list()
+        updated_lfn = list()
         for lfn in files:
             lfn = lfn[0]
             document = dict()
             if lfn.find('temp') == 7:
                 docId = getHashLfn(lfn)
+                good_ids.append(docId)
+                updated_lfn.append(lfn)
                 self.logger.debug("Marking done %s" % lfn)
                 self.logger.debug("Marking done %s" % docId)
-                try:
-                    docbyId = self.oracleDB.get(self.config.oracleFileTrans.replace('filetransfers',
-                                                                                    'fileusertransfers'),
-                                                data=encodeRequest({'subresource': 'getById', 'id': docId}))
-                    document = oracleOutputMapping(docbyId, None)[0]
-                    fileDoc = dict()
-                    fileDoc['asoworker'] = self.config.asoworker
-                    fileDoc['subresource'] = 'updateTransfers'
-                    fileDoc['list_of_ids'] = docId
-                    fileDoc['list_of_transfer_state'] = "DONE"
+        try:
+            data = dict()
+            data['asoworker'] = self.config.asoworker
+            data['subresource'] = 'updateTransfers'
+            data['list_of_ids'] = good_ids
+            data['list_of_transfer_state'] = ["DONE" for x in good_ids]
+            result = self.oracleDB.post(self.config.oracleFileTrans,
+                                        data=encodeRequest(data))
+            self.logger.debug("Marked good %s" % good_ids)
+        except Exception as ex:
+            self.logger.exception("Error updating document")
 
-                    result = self.oracleDB.post(self.config.oracleFileTrans,
-                                                data=encodeRequest(fileDoc))
-                except Exception as ex:
-                    self.logger.error("Error during status update: %s" %ex)
-
-                lfn_done.append(lfn)
-                dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
-                self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
-        return lfn_done, dash_rep
+        return 0
 
     def acquired(self, files):
         """
@@ -49,31 +46,40 @@ class update(object):
         """
         lfn_in_transfer = []
         dash_rep = ()
+        id_list = list()
+        docId = ''
         for lfn in files:
-            lfn = lfn[0]
-            if lfn.find('temp') == 7:
-                docId = getHashLfn(lfn)
+            if lfn['value'][0].find('temp') == 7:
                 self.logger.debug("Marking acquired %s" % lfn)
+                docId = lfn['key'][5]
                 self.logger.debug("Marking acquired %s" % docId)
                 try:
-                    docbyId = self.oracleDB.get(self.config.oracleFileTrans.replace('filetransfers',
-                                                                                    'fileusertransfers'),
-                                                data=encodeRequest({'subresource': 'getById', 'id': docId}))
+                    docbyId = self.oracleDB.get(
+                        self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
+                        data=encodeRequest({'subresource': 'getById', 'id': docId}))
                     document = oracleOutputMapping(docbyId, None)[0]
-                    fileDoc = dict()
-                    fileDoc['asoworker'] = self.config.asoworker
-                    fileDoc['subresource'] = 'updateTransfers'
-                    fileDoc['list_of_ids'] = docId
-                    fileDoc['list_of_transfer_state'] = "SUBMITTED"
-
-                    result = self.oracleDB.post(self.config.oracleFileTrans,
-                                                data=encodeRequest(fileDoc))
+                    id_list.append(docId)
+                    lfn_in_transfer.append(lfn)
                 except Exception as ex:
-                    self.logger.error("Error during status update: %s" %ex)
+                    self.logger.error("Error during status update: %s" % ex)
 
-                lfn_in_transfer.append(lfn)
-                dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
-                self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
+            lfn_in_transfer.append(lfn)
+            # TODO: add dashboard stuff
+            dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
+            self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
+        try:
+            fileDoc = dict()
+            fileDoc['asoworker'] = self.config.asoworker
+            fileDoc['subresource'] = 'updateTransfers'
+            fileDoc['list_of_ids'] = id_list
+            fileDoc['list_of_transfer_state'] = ["SUBMITTED" for x in id_list]
+
+            result = self.oracleDB.post(self.config.oracleFileTrans,
+                                        data=encodeRequest(fileDoc))
+            self.logger.debug("Marked acquired %s" % (id_list))
+        except Exception as ex:
+            self.logger.error("Error during status update: %s" % ex)
+
         return lfn_in_transfer, dash_rep
 
     def failed(self, files, failures_reasons=[], max_retry=3, force_fail=False, submission_error=False):
