@@ -50,18 +50,19 @@ class update(object):
         docId = ''
         for lfn in files:
             lfn = lfn[0]
-            self.logger.debug("Marking acquired %s" % lfn)
-            docId = lfn['key'][5]
-            self.logger.debug("Marking acquired %s" % docId)
-            try:
-                docbyId = self.oracleDB.get(
-                    self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
-                    data=encodeRequest({'subresource': 'getById', 'id': docId}))
-                document = oracleOutputMapping(docbyId, None)[0]
-                id_list.append(docId)
-                lfn_in_transfer.append(lfn)
-            except Exception as ex:
-                self.logger.error("Error during status update: %s" % ex)
+            if lfn.find('temp') == 7:
+                self.logger.debug("Marking acquired %s" % lfn)
+                docId = lfn['key'][5]
+                self.logger.debug("Marking acquired %s" % docId)
+                try:
+                    docbyId = self.oracleDB.get(
+                        self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
+                        data=encodeRequest({'subresource': 'getById', 'id': docId}))
+                    document = oracleOutputMapping(docbyId, None)[0]
+                    id_list.append(docId)
+                    lfn_in_transfer.append(lfn)
+                except Exception as ex:
+                    self.logger.error("Error during status update: %s" % ex)
 
             lfn_in_transfer.append(lfn)
             # TODO: add dashboard stuff
