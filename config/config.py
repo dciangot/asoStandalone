@@ -18,6 +18,7 @@ getter.serviceCert = '/data/certs/hostcert.pem'
 getter.serviceKey = '/data/certs/hostkey.pem'
 getter.serverFTS = 'https://fts3.cern.ch:8446'
 getter.cooloffTime = 7200
+getter.TEST = False
 
 monitor = config.section_('Monitor')
 monitor.max_threads_num = 10

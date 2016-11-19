@@ -108,7 +108,7 @@ class Monitor(object):
 
         count = 0
         while not self.STOP:
-            if count == 0:
+            if count == 0 and not self.config.TEST:
                 self.context = fts3.Context(self.config_getter.serverFTS,
                                             self.config_getter.opsProxy,
                                             self.config_getter.opsProxy, verify=True)
@@ -148,9 +148,10 @@ class Monitor(object):
                                 self.config_getter.opsProxy,
                                 self.config_getter.opsProxy)
 
-        context = fts3.Context(self.config_getter.serverFTS,
-                               self.config_getter.opsProxy,
-                               self.config_getter.opsProxy, verify=True)
+        if not self.config.TEST:
+            context = fts3.Context(self.config_getter.serverFTS,
+                                   self.config_getter.opsProxy,
+                                   self.config_getter.opsProxy, verify=True)
 
         logger = self.logger  # setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
@@ -172,9 +173,14 @@ class Monitor(object):
             for File in os.listdir('Monitor/' + user):
                 job = File.split('.')[0]
                 try:
-                    results = fts3.get_job_status(context, job, list_files=True)
-
-                    self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
+                    if not self.config.TEST:
+                        results = fts3.get_job_status(context, job, list_files=True)
+                        self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
+                    else:
+                        results = {'job_state': 'FINISHED',
+                                   'files': [{'file_metadata': {'lfn': x}}
+                                             for x in open('Monitor/' + user + '/' + File).read()
+                                             ]}
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
                     continue

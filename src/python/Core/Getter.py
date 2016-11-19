@@ -24,6 +24,7 @@ from Queue import Queue
 import re
 from Core.Database.update import update
 from Core import setProcessLogger, chunks, Submission
+from Core import getHashLfn
 import json
 
 # TODO: comment threading and docstring
@@ -287,65 +288,78 @@ class Getter(object):
                 crashMessage += "Assuming this is a graceful break attempt.\n"
                 logger.error(crashMessage)
                 continue
-
-            try:
-                userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
-            except Exception as ex:
-                logger.exception('Cannot retrieve user DN')
-                self.critical_failure(lfns, lock, inputs)
-                continue
-
-            defaultDelegation = {'logger': logger,
-                                 'credServerPath': self.config.credentialDir,
-                                 'myProxySvr': 'myproxy.cern.ch',
-                                 'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
-                                 'serverDN': self.config.serverDN,
-                                 'uisource': '',
-                                 'cleanEnvironment': getattr(self.config, 'cleanEnvironment', False)}
-
-            cache_area = self.config.cache_area
-
-            try:
-                defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
-            except IndexError:
-                logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
-                self.critical_failure(lfns, lock, inputs)
-                continue
-
-            if getattr(self.config, 'serviceCert', None):
-                defaultDelegation['server_cert'] = self.config.serviceCert
-            if getattr(self.config, 'serviceKey', None):
-                defaultDelegation['server_key'] = self.config.serviceKey
-
-            try:
-                defaultDelegation['userDN'] = userDN
-                defaultDelegation['group'] = group
-                defaultDelegation['role'] = role
-                logger.debug('delegation: %s' % defaultDelegation)
-                valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
-                if not valid_proxy:
-                    logger.error('Failed to retrieve user proxy... putting docs on retry')
-                    logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
+            if not self.config.TEST:
+                try:
+                    userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
+                except Exception as ex:
+                    logger.exception('Cannot retrieve user DN')
+                    self.critical_failure(lfns, lock, inputs)
                     continue
-            except Exception:
-                logger.exception('Error retrieving proxy')
-                self.critical_failure(lfns, lock, inputs)
-                continue
+
+                defaultDelegation = {'logger': logger,
+                                     'credServerPath': self.config.credentialDir,
+                                     'myProxySvr': 'myproxy.cern.ch',
+                                     'min_time_left': getattr(self.config, 'minTimeLeft', 36000),
+                                     'serverDN': self.config.serverDN,
+                                     'uisource': '',
+                                     'cleanEnvironment': getattr(self.config, 'cleanEnvironment', False)}
+
+                cache_area = self.config.cache_area
+
+                try:
+                    defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
+                except IndexError:
+                    logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
+                    self.critical_failure(lfns, lock, inputs)
+                    continue
+
+                if getattr(self.config, 'serviceCert', None):
+                    defaultDelegation['server_cert'] = self.config.serviceCert
+                if getattr(self.config, 'serviceKey', None):
+                    defaultDelegation['server_key'] = self.config.serviceKey
+
+                try:
+                    defaultDelegation['userDN'] = userDN
+                    defaultDelegation['group'] = group
+                    defaultDelegation['role'] = role
+                    logger.debug('delegation: %s' % defaultDelegation)
+                    valid_proxy, user_proxy = getProxy(defaultDelegation, logger)
+                    if not valid_proxy:
+                        logger.error('Failed to retrieve user proxy... putting docs on retry')
+                        logger.error('docs on retry: %s' % Update.failed(lfns, submission_error=True))
+                        continue
+                except Exception:
+                    logger.exception('Error retrieving proxy')
+                    self.critical_failure(lfns, lock, inputs)
+                    continue
+            else:
+                user_proxy = self.config.opsProxy
+                self.logger.debug("Using opsProxy for testmode")
 
             try:
-                context = fts3.Context(self.config.serverFTS, user_proxy, user_proxy, verify=True)
-                logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
+                if self.config.TEST:
+                    logger.debug("Running in test mode, submitting fake jobs")
+                else:
+                    context = fts3.Context(self.config.serverFTS, user_proxy, user_proxy, verify=True)
+                    logger.debug(fts3.delegate(context, lifetime=timedelta(hours=48), force=False))
             except Exception:
                 logger.exception("Error submitting to FTS")
                 self.critical_failure(lfns, lock, inputs)
                 continue
 
+            failed_lfn = list()
             try:
-                failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
-                if jobid == -1:
-                    self.critical_failure(lfns, lock, inputs)
-                    continue
-                logger.info('Submitted %s files' % len(submitted_lfn))
+                if self.config.TEST:
+                    submitted_lfn = lfns
+                    jobid = getHashLfn(lfns[0][0])
+                    self.logger.debug('Fake job id: ' + jobid)
+                else:
+                    failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i,
+                                                                  self.logger, fts3, context, tfc_map)
+                    if jobid == -1:
+                        self.critical_failure(lfns, lock, inputs)
+                        continue
+                    logger.info('Submitted %s files' % len(submitted_lfn))
             except Exception:
                 logger.exception("Unexpected error during FTS job submission!")
                 self.critical_failure(lfns, lock, inputs)
