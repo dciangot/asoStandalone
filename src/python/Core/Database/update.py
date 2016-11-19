@@ -52,7 +52,7 @@ class update(object):
             lfn = lfn[0]
             if lfn.find('temp') == 7:
                 self.logger.debug("Marking acquired %s" % lfn)
-                docId = lfn['key'][5]
+                docId = getHashLfn(lfn)
                 self.logger.debug("Marking acquired %s" % docId)
                 try:
                     docbyId = self.oracleDB.get(
