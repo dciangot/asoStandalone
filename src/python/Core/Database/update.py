@@ -49,6 +49,7 @@ class update(object):
         id_list = list()
         docId = ''
         for lfn in files:
+            lfn = lfn[0]
             if lfn['value'][0].find('temp') == 7:
                 self.logger.debug("Marking acquired %s" % lfn)
                 docId = lfn['key'][5]
