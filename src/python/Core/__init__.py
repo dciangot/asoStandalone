@@ -162,8 +162,9 @@ def Submission(lfns, source, dest, procnum, logger, fts3, context, tfc_map):
                            copy_pin_lifetime=-1,
                            bring_online=None,
                            source_spacetoken=None,
-                           spacetoken=None,
-                           max_time_in_queue=6
+                           spacetoken=None
+                           # TODO: check why not on fts3 (clone repo maybe?)
+                           # max_time_in_queue=6
                            )
 
         jobid = fts3.submit(context, job)
