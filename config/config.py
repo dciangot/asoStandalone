@@ -2,6 +2,8 @@ from WMCore.Configuration import Configuration
 
 config = Configuration()
 
+TEST = False
+
 getter = config.section_('Getter')
 getter.opsProxy = "/data/srv/asyncstageout/state/asyncstageout/creds/OpsProxy"
 getter.oracleDB = "cmsweb-testbed.cern.ch"
@@ -18,7 +20,8 @@ getter.serviceCert = '/data/certs/hostcert.pem'
 getter.serviceKey = '/data/certs/hostkey.pem'
 getter.serverFTS = 'https://fts3.cern.ch:8446'
 getter.cooloffTime = 7200
-getter.TEST = False
+getter.TEST = TEST
 
 monitor = config.section_('Monitor')
 monitor.max_threads_num = 10
+monitor.TEST = TEST
