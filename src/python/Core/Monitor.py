@@ -177,9 +177,10 @@ class Monitor(object):
                         results = fts3.get_job_status(context, job, list_files=True)
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
+                        lf = json.loads(open('Monitor/' + user + '/' + File).read())
                         results = {'job_state': 'FINISHED',
-                                   'files': [{'file_metadata': {'lfn': x}}
-                                             for x in open('Monitor/' + user + '/' + File).read()
+                                   'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
+                                             for x in lf
                                              ]}
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
