@@ -218,7 +218,6 @@ class Monitor(object):
 
             input.task_done()
             self.active_users.remove(user)
-            time.sleep(10)
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 

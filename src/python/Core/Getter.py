@@ -342,6 +342,9 @@ class Getter(object):
 
             try:
                 failed_lfn, submitted_lfn, jobid = Submission(lfns, source, dest, i, self.logger, fts3, context, tfc_map)
+                if jobid == -1:
+                    self.critical_failure(lfns, lock, inputs)
+                    continue
                 logger.info('Submitted %s files' % len(submitted_lfn))
             except Exception:
                 logger.exception("Unexpected error during FTS job submission!")
@@ -372,8 +375,6 @@ class Getter(object):
                 logger.exception("Error creating file for monitor")
                 self.critical_failure(lfns, lock, inputs)
                 continue
-
-            time.sleep(10)
 
         logger.debug("Worker %s exiting.", i)
 
