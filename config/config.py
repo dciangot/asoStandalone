@@ -2,7 +2,7 @@ from WMCore.Configuration import Configuration
 
 config = Configuration()
 
-TEST = False
+TEST = True 
 
 getter = config.section_('Getter')
 getter.opsProxy = "/data/srv/asyncstageout/state/asyncstageout/creds/OpsProxy"

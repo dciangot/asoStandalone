@@ -131,7 +131,7 @@ class Monitor(object):
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(60)
+            time.sleep(20)
 
         for w in workers:
             w.join()
@@ -179,7 +179,7 @@ class Monitor(object):
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
-                        if random.randint(0, 2) == 0:
+                        if random.randint(0, random.randint(1,10)) == 0:
                             results = {'job_state': 'FINISHED',
                                        'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
                                                  for x in lf

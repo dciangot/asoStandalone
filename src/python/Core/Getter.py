@@ -125,6 +125,7 @@ class Getter(object):
             worker.start()
             workers.append(worker)
 
+        site_tfc_map = dict()
         while not self.STOP:
             sites, users = self.oracleSiteUser(oracleDB)
 
@@ -142,7 +143,6 @@ class Getter(object):
                 self.logger.exception("Failed to get retry transfers in oracleDB: %s")
             logging.info("Retried files in cooloff: %s" % str(results))
 
-            site_tfc_map = dict()
             for site in sites:
                 if site not in site_tfc_map and str(site) != 'None' and str(site) != 'unknown':
                     site_tfc_map[site] = self.get_tfc_rules(site)
@@ -161,7 +161,7 @@ class Getter(object):
                             self.q.put((files, _user, source, dest, site_tfc_map))
 
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(30)
+            time.sleep(10)
 
         for w in workers:
             w.join()
