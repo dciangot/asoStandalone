@@ -23,6 +23,7 @@ from Core.Database.update import update
 import signal
 import random
 
+
 def createLogdir(dirname):
     """ Create the directory dirname ignoring errors in case it exists. Exit if
         the directory cannot be created.
@@ -190,11 +191,11 @@ class Monitor(object):
                     logger.exception('Failed get job status for %s' % job)
                     continue
 
-                if results['job_state'] in ('FINISHED',
+                if results['job_state'] in ['FINISHED',
                                             'FAILED',
                                             'FINISHEDDIRTY',
-                                            'CANCELED'):
-
+                                            'CANCELED']:
+                    self.logger.info('Updating status for job: ' + job)
                     failed_lfn = list()
                     failed_reasons = list()
                     done_lfn = list()
