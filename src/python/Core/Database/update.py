@@ -13,13 +13,10 @@ class update(object):
         """
         Mark the list of files as tranferred
         """
-        lfn_done = list()
-        dash_rep = tuple()
         good_ids = list()
         updated_lfn = list()
         for lfn in files:
             lfn = lfn[0]
-            document = dict()
             if lfn.find('temp') == 7:
                 docId = getHashLfn(lfn)
                 good_ids.append(docId)
