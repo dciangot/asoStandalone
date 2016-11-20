@@ -6,7 +6,7 @@
 - Remove files from source
 - Feed Publisher if needed
 """
-import fts3.rest.client.easy as fts3
+from fts3.rest.client import easy as fts3
 import os
 import sys
 import logging
@@ -21,7 +21,7 @@ from RESTInteractions import HTTPRequests
 from Queue import Queue
 from Core.Database.update import update
 import signal
-
+import random
 
 def createLogdir(dirname):
     """ Create the directory dirname ignoring errors in case it exists. Exit if
@@ -178,10 +178,14 @@ class Monitor(object):
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
-                        results = {'job_state': 'FINISHED',
-                                   'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
-                                             for x in lf
-                                             ]}
+                        if random.randint(0, 2) == 0:
+                            results = {'job_state': 'FINISHED',
+                                       'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
+                                                 for x in lf
+                                                 ]}
+                        else:
+                            results = {'job_state': 'SUBMITTED'}
+                        self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
                     continue
