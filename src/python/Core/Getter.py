@@ -106,6 +106,7 @@ class Getter(object):
         self.logger = setRootLogger(quiet, debug)
         self.q = Queue()
         self.active_lfns = list()
+        self.Update = update(self.logger, self.config)
 
     def algorithm(self):
         """
@@ -114,9 +115,6 @@ class Getter(object):
         - create queue for each (user, link)
         - create thread
         """
-        oracleDB = HTTPRequests(self.config.oracleDB,
-                                self.config.opsProxy,
-                                self.config.opsProxy)
 
         workers = list()
         for i in range(self.config.max_threads_num):
@@ -126,21 +124,9 @@ class Getter(object):
             workers.append(worker)
 
         while not self.STOP:
-            sites, users = self.oracleSiteUser(oracleDB)
+            sites, users = self.oracleSiteUser(self.Update)
 
-            fileDoc = dict()
-            fileDoc['asoworker'] = self.config.asoworker
-            fileDoc['subresource'] = 'retryTransfers'
-            fileDoc['time_to'] = self.config.cooloffTime
-            self.logger.debug('fileDoc: %s' % fileDoc)
-
-            results = dict()
-            try:
-                results = oracleDB.post(self.config.oracleFileTrans,
-                                        data=encodeRequest(fileDoc))
-            except Exception:
-                self.logger.exception("Failed to get retry transfers in oracleDB: %s")
-            logging.info("Retried files in cooloff: %s" % str(results))
+            self.Update.retry()
 
             site_tfc_map = dict()
             for site in sites:
@@ -168,7 +154,7 @@ class Getter(object):
 
         self.logger.info('Submitter stopped.')
 
-    def oracleSiteUser(self, db):
+    def oracleSiteUser(self, Update):
         """
         1. Acquire transfers from DB
         2. Get acquired users and destination sites
@@ -176,37 +162,9 @@ class Getter(object):
 
         # TODO: flexible with other DBs
 
-        fileDoc = dict()
-        fileDoc['asoworker'] = self.config.asoworker
-        fileDoc['subresource'] = 'acquireTransfers'
+        self.doc_acq = Update.acquire()
 
-        self.logger.debug("Retrieving transfers from oracleDB")
-
-        result = dict()
-        try:
-            result = db.post(self.config.oracleFileTrans,
-                             data=encodeRequest(fileDoc))
-        except Exception as ex:
-            self.logger.error("Failed to acquire transfers \
-                              from oracleDB: %s" % ex)
-
-        self.doc_acq = str(result)
-
-        fileDoc = dict()
-        fileDoc['asoworker'] = self.config.asoworker
-        fileDoc['subresource'] = 'acquiredTransfers'
-        fileDoc['grouping'] = 0
-
-        self.logger.debug("Retrieving users from oracleDB")
-
-        try:
-            results = db.get(self.config.oracleFileTrans,
-                             data=encodeRequest(fileDoc))
-            self.documents = oracleOutputMapping(results)
-        except Exception as ex:
-            self.logger.error("Failed to get acquired transfers \
-                              from oracleDB: %s" % ex)
-            pass
+        self.documents = Update.getAcquired()
 
         for doc in self.documents:
             if doc['user_role'] is None:

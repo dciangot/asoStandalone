@@ -144,10 +144,6 @@ class Monitor(object):
         :param inputs:
         :return:
         """
-        oracleDB = HTTPRequests(self.config_getter.oracleDB,
-                                self.config_getter.opsProxy,
-                                self.config_getter.opsProxy)
-
         if not self.config.TEST:
             context = fts3.Context(self.config_getter.serverFTS,
                                    self.config_getter.opsProxy,
@@ -156,7 +152,7 @@ class Monitor(object):
         logger = self.logger  # setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
-        Update = update(logger, oracleDB, self.config_getter)
+        Update = update(logger, self.config_getter)
 
         while not self.STOP:
             if input.empty():

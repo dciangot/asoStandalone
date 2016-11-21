@@ -4,10 +4,68 @@ from Core import getHashLfn
 
 class update(object):
 
-    def __init__(self, logger, oracleDB, config):
+    def __init__(self, logger, config):
         self.oracleDB = oracleDB
+        self.oracleDB = HTTPRequests(config.oracleDB,
+                                     config.opsProxy,
+                                     config.opsProxy)
+
         self.config = config
         self.logger = logger
+
+    def retry(self):
+        fileDoc = dict()
+        fileDoc['asoworker'] = self.config.asoworker
+        fileDoc['subresource'] = 'retryTransfers'
+        fileDoc['time_to'] = self.config.cooloffTime
+        self.logger.debug('fileDoc: %s' % fileDoc)
+
+        results = dict()
+        try:
+            results = self.oracleDB.post(self.config.oracleFileTrans,
+                                         data=encodeRequest(fileDoc))
+        except Exception:
+            self.logger.exception("Failed to get retry transfers in oracleDB: %s")
+        self.logger.info("Retried files in cooloff: %s" % str(results))
+
+        return 0
+
+    def acquire(self):
+        fileDoc = dict()
+        fileDoc['asoworker'] = self.config.asoworker
+        fileDoc['subresource'] = 'acquireTransfers'
+
+        self.logger.debug("Retrieving transfers from oracleDB")
+
+        result = dict()
+        try:
+            result = self.oracleDB.post(self.config.oracleFileTrans,
+                                        data=encodeRequest(fileDoc))
+        except Exception as ex:
+            self.logger.error("Failed to acquire transfers \
+                              from oracleDB: %s" % ex)
+
+        return str(result)
+
+    def getAcquired(self):
+        fileDoc = dict()
+        fileDoc['asoworker'] = self.config.asoworker
+        fileDoc['subresource'] = 'acquiredTransfers'
+        fileDoc['grouping'] = 0
+
+        self.logger.debug("Retrieving users from oracleDB")
+
+        documents = list()
+        try:
+            results = self.oracleDB.get(self.config.oracleFileTrans,
+                             data=encodeRequest(fileDoc))
+            documents = oracleOutputMapping(results)
+        except Exception as ex:
+            self.logger.error("Failed to get acquired transfers \
+                              from oracleDB: %s" % ex)
+            pass
+
+        return documents
 
     def transferred(self, files):
         """
