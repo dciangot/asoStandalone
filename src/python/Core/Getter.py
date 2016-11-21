@@ -61,7 +61,9 @@ class Getter(object):
         createLogdir('Monitor')
 
         def setRootLogger(quiet, debug):
-            """Sets the root logger with the desired verbosity level
+            """
+            Taken from CRABServer TaskWorker
+            Sets the root logger with the desired verbosity level
                The root logger logs to logs/asolog.txt and every single
                logging instruction is propagated to it (not really nice
                to read)
@@ -113,7 +115,7 @@ class Getter(object):
         - Get Users
         - Get Source dest
         - create queue for each (user, link)
-        - create thread
+        - feed threads
         """
 
         workers = list()
@@ -212,6 +214,15 @@ class Getter(object):
         return readTFC(tfc_file)
 
     def critical_failure(self, lfns, lock, inputs):
+        """
+        if an exception occurs before the end, remove lfns from active
+        to let it be reprocessed later.
+
+        :param lfns:
+        :param lock:
+        :param inputs:
+        :return:
+        """
         lock.acquire()
         for lfn in lfns:
             self.active_lfns.remove(lfn)
@@ -220,6 +231,9 @@ class Getter(object):
 
     def worker(self, i, inputs):
         """
+        - Retrieve userDN
+        - Retrieve user proxy
+        - Delegate proxy to fts is needed
 
         :param i:
         :param inputs:
@@ -229,10 +243,7 @@ class Getter(object):
         logger = self.logger
         logger.info("Process %s is starting. PID %s", i, os.getpid())
         lock = Lock()
-        oracleDB = HTTPRequests(self.config.oracleDB,
-                                self.config.opsProxy,
-                                self.config.opsProxy)
-        Update = update(logger, oracleDB, self.config)
+        Update = update(logger, self.config)
 
         while not self.STOP:
             if inputs.empty():
@@ -246,6 +257,7 @@ class Getter(object):
                 crashMessage += "Assuming this is a graceful break attempt.\n"
                 logger.error(crashMessage)
                 continue
+
             if not self.config.TEST:
                 try:
                     userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)

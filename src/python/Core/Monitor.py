@@ -128,6 +128,7 @@ class Monitor(object):
                 count += 1
             else:
                 count = 0
+
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
