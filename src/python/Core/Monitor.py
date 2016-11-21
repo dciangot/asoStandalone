@@ -17,7 +17,6 @@ from threading import Thread, Lock
 from WMCore.Configuration import loadConfigurationFile
 from MultiProcessingLog import MultiProcessingLog
 from Core import setProcessLogger
-from RESTInteractions import HTTPRequests
 from Queue import Queue
 from Core.Database.update import update
 import signal
@@ -56,7 +55,9 @@ class Monitor(object):
         createLogdir('Done')
 
         def setRootLogger(quiet, debug):
-            """Sets the root logger with the desired verbosity level
+            """
+            Taken from CRABServer TaskWorker
+            Sets the root logger with the desired verbosity level
                The root logger logs to logs/asolog.txt and every single
                logging instruction is propagated to it (not really nice
                to read)
@@ -237,7 +238,7 @@ class Monitor(object):
 
 if __name__ == '__main__':
     """
-    - get option and config masterworker
+    - get option and config monitor
     """
 
     from optparse import OptionParser
