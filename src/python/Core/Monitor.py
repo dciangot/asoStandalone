@@ -13,7 +13,7 @@ import logging
 import time
 import json
 from datetime import timedelta
-from threading import Thread, Lock
+from threading import Thread
 from WMCore.Configuration import loadConfigurationFile
 from MultiProcessingLog import MultiProcessingLog
 from Core import setProcessLogger
