@@ -6,7 +6,7 @@
 - Remove files from source
 - Feed Publisher if needed
 """
-import fts3.rest.client.easy as fts3
+from fts3.rest.client import easy as fts3
 import os
 import sys
 import logging
@@ -21,6 +21,7 @@ from RESTInteractions import HTTPRequests
 from Queue import Queue
 from Core.Database.update import update
 import signal
+import random
 
 
 def createLogdir(dirname):
@@ -130,7 +131,7 @@ class Monitor(object):
             self.logger.info('%s active users' % len(self.active_users))
             self.logger.debug('Active users are: %s' % self.active_users)
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(60)
+            time.sleep(20)
 
         for w in workers:
             w.join()
@@ -174,19 +175,23 @@ class Monitor(object):
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
-                        results = {'job_state': 'FINISHED',
-                                   'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
-                                             for x in lf
-                                             ]}
+                        if random.randint(0, random.randint(1,10)) == 0:
+                            results = {'job_state': 'FINISHED',
+                                       'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
+                                                 for x in lf
+                                                 ]}
+                        else:
+                            results = {'job_state': 'SUBMITTED'}
+                        self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                 except Exception:
                     logger.exception('Failed get job status for %s' % job)
                     continue
 
-                if results['job_state'] in ('FINISHED',
+                if results['job_state'] in ['FINISHED',
                                             'FAILED',
                                             'FINISHEDDIRTY',
-                                            'CANCELED'):
-
+                                            'CANCELED']:
+                    self.logger.info('Updating status for job: ' + job)
                     failed_lfn = list()
                     failed_reasons = list()
                     done_lfn = list()
