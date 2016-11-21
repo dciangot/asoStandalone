@@ -98,6 +98,8 @@ class Monitor(object):
 
     def algorithm(self):
         """
+        - delegate and use opsproxy (once every 12h)
+        - Look into Monitor user folders and if the user is not in the queue put it there
 
         :return:
         """
@@ -142,9 +144,16 @@ class Monitor(object):
 
     def worker(self, i, input):
         """
+        - get a token for fts
+        - loop over users in queue
+        - for each user get the list of jobid from filenames in Monitor/user folder
+        - monitor the status of the job
+        - if final, look the file statuses of the files
+        - update the db state
+        - remove file from the source (raise no critical error)
 
-        :param i:
-        :param inputs:
+        :param i: id number of the thread
+        :param inputs: users
         :return:
         """
         if not self.config.TEST:
@@ -154,7 +163,6 @@ class Monitor(object):
 
         logger = self.logger  # setProcessLogger('Mon'+str(i))
         logger.info("Process %s is starting. PID %s", i, os.getpid())
-        lock = Lock()
         Update = update(logger, self.config_getter)
 
         while not self.STOP:
@@ -173,7 +181,7 @@ class Monitor(object):
                 job = File.split('.')[0]
                 try:
                     if not self.config.TEST:
-                        results = fts3.get_job_status(context, job, list_files=True)
+                        results = fts3.get_job_status(context, job, list_files=False)
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
@@ -193,6 +201,12 @@ class Monitor(object):
                                             'FAILED',
                                             'FINISHEDDIRTY',
                                             'CANCELED']:
+                    try:
+                        results = fts3.get_job_status(context, job, list_files=True)
+                    except Exception:
+                        logger.exception('Failed get file statuses for %s' % job)
+                        continue
+
                     self.logger.info('Updating status for job: ' + job)
                     failed_lfn = list()
                     failed_reasons = list()
