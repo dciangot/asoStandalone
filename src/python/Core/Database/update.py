@@ -1,11 +1,20 @@
+"""
+Define all the interations with the ASO DB
+"""
 from ServerUtilities import encodeRequest, oracleOutputMapping
 from Core import getHashLfn
+from RESTInteractions import HTTPRequests
 
 
 class update(object):
 
     def __init__(self, logger, config):
-        self.oracleDB = oracleDB
+        """
+        Initialize connection to the db and logging/config
+
+        :param logger: pass the logging
+        :param config: refer to the configuration file
+        """
         self.oracleDB = HTTPRequests(config.oracleDB,
                                      config.opsProxy,
                                      config.opsProxy)
@@ -14,6 +23,10 @@ class update(object):
         self.logger = logger
 
     def retry(self):
+        """
+        Retry documents older than self.config.cooloffTime
+        :return:
+        """
         fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'retryTransfers'
@@ -31,6 +44,11 @@ class update(object):
         return 0
 
     def acquire(self):
+        """
+        Get a number (1k for current oracle rest) of documents and bind them to this aso
+        NEW -> ACQUIRED (asoworker NULL -> config.asoworker)
+        :return:
+        """
         fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'acquireTransfers'
@@ -48,6 +66,10 @@ class update(object):
         return str(result)
 
     def getAcquired(self):
+        """
+        Get a number of documents to be submitted (in ACQUIRED status) and return results of the query for logs
+        :return:
+        """
         fileDoc = dict()
         fileDoc['asoworker'] = self.config.asoworker
         fileDoc['subresource'] = 'acquiredTransfers'
@@ -67,37 +89,13 @@ class update(object):
 
         return documents
 
-    def transferred(self, files):
+    def submitted(self, files):
         """
-        Mark the list of files as tranferred
-        """
-        good_ids = list()
-        updated_lfn = list()
-        for lfn in files:
-            lfn = lfn[0]
-            if lfn.find('temp') == 7:
-                docId = getHashLfn(lfn)
-                good_ids.append(docId)
-                updated_lfn.append(lfn)
-                self.logger.debug("Marking done %s" % lfn)
-                self.logger.debug("Marking done %s" % docId)
-        try:
-            data = dict()
-            data['asoworker'] = self.config.asoworker
-            data['subresource'] = 'updateTransfers'
-            data['list_of_ids'] = good_ids
-            data['list_of_transfer_state'] = ["DONE" for x in good_ids]
-            result = self.oracleDB.post(self.config.oracleFileTrans,
-                                        data=encodeRequest(data))
-            self.logger.debug("Marked good %s" % good_ids)
-        except Exception as ex:
-            self.logger.exception("Error updating document")
-
-        return 0
-
-    def acquired(self, files):
-        """
-        Mark the list of files as tranferred
+        Mark the list of files as submitted once the FTS submission succeeded
+        ACQUIRED -> SUBMITTED
+        Return the lfns updated successfully and report data for dashboard
+        :param files: tuple (source_lfn, dest_lfn)
+        :return:
         """
         lfn_in_transfer = []
         dash_rep = ()
@@ -138,7 +136,44 @@ class update(object):
 
         return lfn_in_transfer, dash_rep
 
+    def transferred(self, files):
+        """
+        Mark the list of files as tranferred
+        """
+        good_ids = list()
+        updated_lfn = list()
+        for lfn in files:
+            lfn = lfn[0]
+            if lfn.find('temp') == 7:
+                docId = getHashLfn(lfn)
+                good_ids.append(docId)
+                updated_lfn.append(lfn)
+                self.logger.debug("Marking done %s" % lfn)
+                self.logger.debug("Marking done %s" % docId)
+        try:
+            data = dict()
+            data['asoworker'] = self.config.asoworker
+            data['subresource'] = 'updateTransfers'
+            data['list_of_ids'] = good_ids
+            data['list_of_transfer_state'] = ["DONE" for x in good_ids]
+            result = self.oracleDB.post(self.config.oracleFileTrans,
+                                        data=encodeRequest(data))
+            self.logger.debug("Marked good %s" % good_ids)
+        except Exception as ex:
+            self.logger.exception("Error updating document")
+
+        return 0
+
     def failed(self, files, failures_reasons=[], max_retry=3, force_fail=False, submission_error=False):
+        """
+
+        :param files: tuple (source_lfn, dest_lfn)
+        :param failures_reasons: list(str) with reasons of failure
+        :param max_retry: number of retry before giving up
+        :param force_fail: flag for triggering failure without retry
+        :param submission_error: error during fts submission
+        :return:
+        """
         """
         Something failed for these files so increment the retry count
         """

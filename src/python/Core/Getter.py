@@ -4,9 +4,7 @@
 - launch submitter subprocess
 - update status
 """
-from RESTInteractions import HTTPRequests
 from WMCore.Configuration import loadConfigurationFile
-from ServerUtilities import encodeRequest, oracleOutputMapping
 from MultiProcessingLog import MultiProcessingLog
 from WMCore.Services.PhEDEx.PhEDEx import PhEDEx
 from Core import getDNFromUserName
@@ -31,8 +29,9 @@ import json
 
 
 def createLogdir(dirname):
-    """ Create the directory dirname ignoring errors in case it exists. Exit if
-        the directory cannot be created.
+    """
+    Create the directory dirname ignoring errors in case it exists. Exit if
+    the directory cannot be created.
     """
     try:
         os.mkdir(dirname)
@@ -49,11 +48,7 @@ class Getter(object):
     """
     def __init__(self, config, quiet, debug, test=False):
         """
-        initialize
-        :param config:
-        :param quiet:
-        :param debug:
-        :param test:
+        initialize log, connections etc
         """
         self.config = config.Getter
 
@@ -234,9 +229,11 @@ class Getter(object):
         - Retrieve userDN
         - Retrieve user proxy
         - Delegate proxy to fts is needed
+        - submit fts job
+        - update doc states
 
-        :param i:
-        :param inputs:
+        :param i: thread number
+        :param inputs: tuple (lfns, _user, source, dest, tfc_map)
         :return:
         """
         # TODO: differentiate log messages per USER!
@@ -337,7 +334,7 @@ class Getter(object):
 
             # TODO: add file FTS id and job id columns for kill command
             try:
-                Update.acquired(lfns)
+                Update.submitted(lfns)
             except Exception:
                 logger.exception("Error updating document status")
                 self.critical_failure(lfns, lock, inputs)
@@ -361,15 +358,21 @@ class Getter(object):
                 continue
 
         logger.debug("Worker %s exiting.", i)
+        return 0
 
-    def quit_(self, dummyCode, dummyTraceback):
+    def quit_(self):
+        """
+        set STOP to True
+        :return:
+        """
         self.logger.info("Received kill request. Setting STOP flag in the master and threads...")
         self.STOP = True
 
 
 if __name__ == '__main__':
     """
-    - get option and config masterworker
+    Taken from CRABServer TaskWorker
+    - get option and config getter
     """
 
     from optparse import OptionParser
