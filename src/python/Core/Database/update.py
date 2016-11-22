@@ -128,8 +128,8 @@ class update(object):
             fileDoc['list_of_ids'] = id_list
             fileDoc['list_of_transfer_state'] = ["SUBMITTED" for x in id_list]
 
-            result = self.oracleDB.post(self.config.oracleFileTrans,
-                                        data=encodeRequest(fileDoc))
+            self.oracleDB.post(self.config.oracleFileTrans,
+                               data=encodeRequest(fileDoc))
             self.logger.debug("Marked acquired %s" % (id_list))
         except Exception as ex:
             self.logger.error("Error during status update: %s" % ex)
@@ -156,10 +156,10 @@ class update(object):
             data['subresource'] = 'updateTransfers'
             data['list_of_ids'] = good_ids
             data['list_of_transfer_state'] = ["DONE" for x in good_ids]
-            result = self.oracleDB.post(self.config.oracleFileTrans,
-                                        data=encodeRequest(data))
+            self.oracleDB.post(self.config.oracleFileTrans,
+                               data=encodeRequest(data))
             self.logger.debug("Marked good %s" % good_ids)
-        except Exception as ex:
+        except Exception:
             self.logger.exception("Error updating document")
 
         return 0
@@ -173,9 +173,6 @@ class update(object):
         :param force_fail: flag for triggering failure without retry
         :param submission_error: error during fts submission
         :return:
-        """
-        """
-        Something failed for these files so increment the retry count
         """
         updated_lfn = []
         for Lfn in files:
@@ -218,10 +215,115 @@ class update(object):
             self.logger.debug("update: %s" % fileDoc)
             try:
                 updated_lfn.append(docId)
-                result = self.oracleDB.post(self.config.oracleFileTrans,
-                                            data=encodeRequest(fileDoc))
+                self.oracleDB.post(self.config.oracleFileTrans,
+                                   data=encodeRequest(fileDoc))
             except Exception:
                 self.logger.exception('ERROR updating failed documents')
                 continue
         self.logger.debug("failed file updated")
         return updated_lfn
+
+    def acquirePub(self):
+        """
+
+        :return:
+        """
+        fileDoc = dict()
+        fileDoc['asoworker'] = self.config.asoworker
+        fileDoc['subresource'] = 'acquirePublication'
+
+        self.logger.debug("Retrieving publications from oracleDB")
+
+        try:
+            self.oracleDB.post(self.config.oracleFileTrans,
+                    data=encodeRequest(fileDoc))
+        except Exception as ex:
+            self.logger.error("Failed to acquire publications \
+                              from oracleDB: %s" % ex)
+
+    def getPub(self):
+        """
+
+        :return:
+        """
+        to_pub_docs = list()
+        filedoc = dict()
+        filedoc['asoworker'] = self.config.asoworker
+        filedoc['subresource'] = 'acquiredPublication'
+        filedoc['grouping'] = 0
+
+        try:
+            results = self.oracleDB.get(self.config.oracleFileTrans,
+                                        data=encodeRequest(filedoc))
+            to_pub_docs = oracleOutputMapping(results)
+        except Exception as ex:
+            self.logger.error("Failed to get acquired publications \
+                              from oracleDB: %s" % ex)
+            return to_pub_docs
+
+        return to_pub_docs
+
+    def pubDone(self, files, workflow):
+        """
+
+        :param files:
+        :param workflow:
+        :return:
+        """
+        wfnamemsg = "%s: " % workflow
+        data = dict()
+        id_list = list()
+        for Lfn in files:
+            lfn = Lfn[1]
+            source_lfn = Lfn[0]
+            docId = getHashLfn(source_lfn)
+            id_list.append(docId)
+            msg = "Marking file %s as published." % lfn
+            msg += " Document id: %s (source LFN: %s)." % (docId, source_lfn)
+            self.logger.info(wfnamemsg + msg)
+        data['asoworker'] = self.config.asoworker
+        data['subresource'] = 'updatePublication'
+        data['list_of_ids'] = id_list
+        data['list_of_publication_state'] = ['DONE' for x in id_list]
+        try:
+            self.oracleDB.post(self.config.oracleFileTrans,
+                               data=encodeRequest(data))
+            self.logger.debug("updated done: %s " % id_list)
+        except Exception as ex:
+            self.logger.error("Error during status update for published docs: %s" % ex)
+
+    def pubFailed(self, files, retry_count=0, force_failure=False, failure_reasons=list()):
+        """
+
+        :param files:
+        :param failure_reasons:
+        :return:
+        """
+        id_list = list()
+        for Lfn in files:
+            source_lfn = Lfn[0]
+            docId = getHashLfn(source_lfn)
+            id_list.append(docId)
+            self.logger.debug("Marking failed %s" % docId)
+
+        fileDoc = dict()
+        fileDoc['asoworker'] = 'asodciangot1'
+        fileDoc['subresource'] = 'updatePublication'
+        fileDoc['list_of_ids'] = id_list
+        fileDoc['list_of_publication_state'] = ['FAILED' for x in id_list]
+
+        #if force_failure or document['publish_retry_count'] > self.max_retry:
+        #else:
+        #    fileDoc['list_of_publication_state'] = 'RETRY'
+        # TODO: implement retry, publish_retry_count missing from input?
+
+        fileDoc['list_of_retry_value'] = [1 for x in id_list]
+        fileDoc['list_of_failure_reason'] = failure_reasons
+
+        try:
+            self.oracleDB.post(self.config.oracleFileTrans,
+                                data=encodeRequest(fileDoc))
+            self.logger.debug("updated failed: %s " % id_list)
+        except Exception:
+            msg = "Error updating failed documents"
+            self.logger.exception(msg)

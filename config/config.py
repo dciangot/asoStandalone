@@ -10,7 +10,7 @@ getter.oracleDB = "cmsweb-testbed.cern.ch"
 getter.oracleFileTrans = "/crabserver/preprod/filetransfers"
 getter.oracleUserFileTrans = "/crabserver/preprod/fileusertransfers"
 getter.asoworker = "asodciangot1"
-getter.max_threads_num = 10
+getter.max_threads_num = 50
 getter.pool_size = 100
 getter.files_per_job = 200
 getter.credentialDir = '/data/srv/asyncstageout/state/asyncstageout/creds'
@@ -23,5 +23,9 @@ getter.cooloffTime = 7200
 getter.TEST = TEST
 
 monitor = config.section_('Monitor')
-monitor.max_threads_num = 10
+monitor.max_threads_num = 50
 monitor.TEST = TEST
+
+publisher = config.section_('Publisher')
+publisher.max_threads_num = 50
+publisher.TEST = TEST

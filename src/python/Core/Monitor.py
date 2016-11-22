@@ -48,6 +48,7 @@ class Monitor(object):
         :param debug:
         :param test:
         """
+        # TODO: use test in input to set self.TEST
         self.config_getter = config.Getter
         self.config = config.Monitor
         self.TEST = False
