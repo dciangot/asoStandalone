@@ -62,7 +62,7 @@ class Publisher(object):
                 # if we are testing log to the console is easier
                 logging.getLogger().addHandler(logging.StreamHandler())
             else:
-                logHandler = MultiProcessingLog('logs/monitor.txt', when='midnight')
+                logHandler = MultiProcessingLog('logs/publisher.txt', when='midnight')
                 logFormatter = \
                     logging.Formatter("%(asctime)s:%(levelname)s:%(module)s:%(message)s")
                 logHandler.setFormatter(logFormatter)
