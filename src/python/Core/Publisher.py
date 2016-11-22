@@ -87,7 +87,7 @@ class Publisher(object):
         """
         - acquire files for publication
         - get users to be published
-        - queue ((user, group, role), [{task:'', lfns:[[source_lfn,dest_lfn]]}])
+        - queue ([user, group, role], [{task:'', lfns:[[source_lfn,dest_lfn]]}])
         - update publication status
         :return:
         """
@@ -115,9 +115,8 @@ class Publisher(object):
             self.logger.info('Active users: %s' % len(users))
 
             for user in users:
-                self.logger.debug([i for i in set([x['taskname'] for x in toPub])])
                 tasks = [i for i in set([x['taskname'] for x in toPub
-                                         if (x['username'], x['user_group'], x['user_role']) == user])]
+                                         if [x['username'], x['user_group'], x['user_role']] == user])]
                 self.logger.info('%s active tasks for user %s' % (len(tasks), user))
 
             time.sleep(300)
