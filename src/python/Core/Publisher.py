@@ -98,23 +98,24 @@ class Publisher(object):
             worker.start()
             workers.append(worker)
 
-        toPub = list()
         while not self.STOP:
             try:
                 Update = update(self.logger, self.config_getter)
                 self.logger.info("Acquiring publications")
                 Update.acquirePub()
                 toPub = Update.getPub()
-                self.logger.info(str(len(toPub)) + "documents acquired")
+                self.logger.info(str(len(toPub)) + " documents acquired")
             except Exception:
                 self.logger.exception('Error during docs acquiring')
                 continue
 
             users = [list(i) for i in set(tuple([x['username'], x['user_group'], x['user_role']])
-                                          for x in toPub if x['transfer_state'] == 3)]
+                                          for x in toPub
+                                          if x['transfer_state'] == 3 and x['publication_state'] not in [2, 3, 5])]
             self.logger.info('Active users: %s' % len(users))
 
             for user in users:
+                self.logger.debug([i for i in set([x['taskname'] for x in toPub])])
                 tasks = [i for i in set([x['taskname'] for x in toPub
                                          if (x['username'], x['user_group'], x['user_role']) == user])]
                 self.logger.info('%s active tasks for user %s' % (len(tasks), user))
