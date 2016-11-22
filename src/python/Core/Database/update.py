@@ -292,7 +292,7 @@ class update(object):
         except Exception as ex:
             self.logger.error("Error during status update for published docs: %s" % ex)
 
-    def pubFailed(self, files, retry_count=0, force_failure=False, failure_reasons=list()):
+    def pubFailed(self, files, failure_reasons=list(), force_failure=False):
         """
 
         :param files:
