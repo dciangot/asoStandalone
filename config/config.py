@@ -30,3 +30,4 @@ publisher = config.section_('Publisher')
 publisher.max_threads_num = 50
 publisher.TEST = TEST
 publisher.max_files_per_block = 1
+publisher.block_closure_timeout = 100
