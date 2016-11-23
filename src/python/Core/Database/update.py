@@ -273,9 +273,8 @@ class update(object):
         wfnamemsg = "%s: " % workflow
         data = dict()
         id_list = list()
-        for Lfn in files:
-            lfn = Lfn[1]
-            source_lfn = Lfn[0]
+        for lfn in files:
+            source_lfn = lfn
             docId = getHashLfn(source_lfn)
             id_list.append(docId)
             msg = "Marking file %s as published." % lfn
