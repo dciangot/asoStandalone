@@ -255,6 +255,8 @@ class Getter(object):
                 logger.error(crashMessage)
                 continue
 
+            start = time.time()
+
             if not self.config.TEST:
                 try:
                     userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
@@ -356,6 +358,8 @@ class Getter(object):
                 logger.exception("Error creating file for monitor")
                 self.critical_failure(lfns, lock, inputs)
                 continue
+
+            self.logger.info('Input processed in %s' % time.time()-start)
 
         logger.debug("Worker %s exiting.", i)
         return 0
