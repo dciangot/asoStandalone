@@ -149,8 +149,8 @@ class Publisher(object):
                     input = {'task': task, 'docs': docs}
                     self.active_files += [x['source_lfn'] for x in docs]
 
-                    self.q.put(user, input)
-                    self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
+                    self.q.put((user, input))
+                self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
 
             time.sleep(10)
 
@@ -203,7 +203,7 @@ class Publisher(object):
 
             if not self.config.TEST:
                 try:
-                    userDN = getDNFromUserName(user, logger, ckey=self.config.opsProxy, cert=self.config.opsProxy)
+                    userDN = getDNFromUserName(user, logger, ckey=self.config_getter.opsProxy, cert=self.config_getter.opsProxy)
                 except Exception as ex:
                     logger.exception('Cannot retrieve user DN')
                     self.critical_failure([x['source_lfn'] for x in input], lock, inputs)
@@ -246,7 +246,7 @@ class Publisher(object):
                     self.critical_failure([x['source_lfn'] for x in input['docs']], lock, inputs)
                     continue
             else:
-                user_proxy = self.config.opsProxy
+                user_proxy = self.config_getter.opsProxy
                 self.logger.debug("Using opsProxy for testmode")
 
             task = input['task']
