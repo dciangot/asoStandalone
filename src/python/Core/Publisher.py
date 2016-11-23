@@ -141,16 +141,16 @@ class Publisher(object):
             # TODO: N.B. check the effect of the limited number of docs from queries!! Can one user stuck everything?
 
             for user in users:
-                input = list()
+                input = dict()
                 tasks = [i for i in set([x['taskname'] for x in toPub
                                          if [x['username'], x['user_group'], x['user_role']] == user])]
                 for task in tasks:
                     docs = [x for x in toPub if x['taskname'] == task if x['source_lfn'] not in self.active_files]
-                    input = {'task': task, 'docs': docs}
+                    input.append = {'task': task, 'docs': docs}
                     self.active_files += [x['source_lfn'] for x in docs]
 
-                self.q.put(user, input)
-                self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
+                    self.q.put(user, input)
+                    self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
 
             time.sleep(10)
 
@@ -223,7 +223,7 @@ class Publisher(object):
                     defaultDelegation['myproxyAccount'] = re.compile('https?://([^/]*)/.*').findall(cache_area)[0]
                 except IndexError:
                     logger.error('MyproxyAccount parameter cannot be retrieved from %s . ' % self.config.cache_area)
-                    self.critical_failure([x['source_lfn'] for x in input], lock, inputs)
+                    self.critical_failure([x['source_lfn'] for x in input['docs']], lock, inputs)
                     continue
 
                 if getattr(self.config, 'serviceCert', None):
@@ -243,7 +243,7 @@ class Publisher(object):
                         continue
                 except Exception:
                     logger.exception('Error retrieving proxy')
-                    self.critical_failure([x['source_lfn'] for x in input], lock, inputs)
+                    self.critical_failure([x['source_lfn'] for x in input['docs']], lock, inputs)
                     continue
             else:
                 user_proxy = self.config.opsProxy
