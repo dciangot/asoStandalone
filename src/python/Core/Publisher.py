@@ -146,7 +146,7 @@ class Publisher(object):
                                          if [x['username'], x['user_group'], x['user_role']] == user])]
                 for task in tasks:
                     docs = [x for x in toPub if x['taskname'] == task if x['source_lfn'] not in self.active_files]
-                    input.append = {'task': task, 'docs': docs}
+                    input = {'task': task, 'docs': docs}
                     self.active_files += [x['source_lfn'] for x in docs]
 
                     self.q.put(user, input)
