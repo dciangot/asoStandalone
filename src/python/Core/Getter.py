@@ -359,7 +359,9 @@ class Getter(object):
                 self.critical_failure(lfns, lock, inputs)
                 continue
 
-            self.logger.info('Input processed in %s' % time.time()-start)
+            end = time.time()
+            self.logger.info('Input processed in %s', str(end-start))
+            time.sleep(0.5)
 
         logger.debug("Worker %s exiting.", i)
         return 0

@@ -108,19 +108,19 @@ class update(object):
                 docId = getHashLfn(lfn)
                 self.logger.debug("Marking acquired %s" % docId)
                 try:
-                    docbyId = self.oracleDB.get(
-                        self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
-                        data=encodeRequest({'subresource': 'getById', 'id': docId}))
-                    document = oracleOutputMapping(docbyId, None)[0]
+        #            docbyId = self.oracleDB.get(
+        #                self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
+        #                data=encodeRequest({'subresource': 'getById', 'id': docId}))
+        #            document = oracleOutputMapping(docbyId, None)[0]
                     id_list.append(docId)
                     lfn_in_transfer.append(lfn)
                 except Exception as ex:
-                    self.logger.error("Error during status update: %s" % ex)
+                    self.logger.error("Error getting id: %s" % ex)
+                    raise
 
             lfn_in_transfer.append(lfn)
             # TODO: add dashboard stuff
-            dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
-            self.logger.debug("Marked acquired %s of %s" % (docId, lfn))
+            # dash_rep = (document['jobid'], document['job_retry_count'], document['taskname'])
         try:
             fileDoc = dict()
             fileDoc['asoworker'] = self.config.asoworker
@@ -133,7 +133,6 @@ class update(object):
             self.logger.debug("Marked acquired %s" % (id_list))
         except Exception as ex:
             self.logger.error("Error during status update: %s" % ex)
-
         return lfn_in_transfer, dash_rep
 
     def transferred(self, files):

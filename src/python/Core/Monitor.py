@@ -185,8 +185,9 @@ class Monitor(object):
                         results = fts3.get_job_status(context, job, list_files=False)
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
+			time.sleep(random.randint(0, random.randint(0,3)))
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
-                        if random.randint(0, random.randint(1,10)) == 0:
+                        if random.randint(0, random.randint(0,5)) == 0:
                             results = {'job_state': 'FINISHED',
                                        'files': [{'file_metadata': {'lfn': x}, 'file_state': 'FINISHED'}
                                                  for x in lf
@@ -202,11 +203,13 @@ class Monitor(object):
                                             'FAILED',
                                             'FINISHEDDIRTY',
                                             'CANCELED']:
-                    try:
-                        results = fts3.get_job_status(context, job, list_files=True)
-                    except Exception:
-                        logger.exception('Failed get file statuses for %s' % job)
-                        continue
+                    if not self.config.TEST:
+                        try:
+                            results = fts3.get_job_status(context, job, list_files=True)
+                        except Exception:
+                            logger.exception('Failed get file statuses for %s' % job)
+                            self.active_users.remove(user)
+                            continue
 
                     self.logger.info('Updating status for job: ' + job)
                     failed_lfn = list()
@@ -232,17 +235,18 @@ class Monitor(object):
                         Update.failed(failed_lfn, failed_reasons)
                     except Exception:
                         logger.exception('Failed to update states')
+                        self.active_users.remove(user)
                         continue
-
                     try:
                         logger.info('Removing' + 'Monitor/' + user + '/' + File)
                         os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
                     except:
                         logger.exception('failed to remove monitor file')
+                        self.active_users.remove(user)
                         continue
-
             input.task_done()
             self.active_users.remove(user)
+            time.sleep(1)           
         logger.debug("Worker %s exiting.", i)
                 # TODO: cleaner
 
