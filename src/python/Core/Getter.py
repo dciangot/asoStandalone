@@ -144,7 +144,7 @@ class Getter(object):
                             self.q.put((files, _user, source, dest, site_tfc_map))
 
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
-            time.sleep(10)
+            time.sleep(4)
 
         for w in workers:
             w.join()

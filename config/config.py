@@ -23,7 +23,7 @@ getter.cooloffTime = 7200
 getter.TEST = TEST
 
 monitor = config.section_('Monitor')
-monitor.max_threads_num = 12
+monitor.max_threads_num = 24
 monitor.TEST = TEST
 
 publisher = config.section_('Publisher')
