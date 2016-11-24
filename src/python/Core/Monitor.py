@@ -209,7 +209,6 @@ class Monitor(object):
                             results = fts3.get_job_status(context, job, list_files=True)
                         except Exception:
                             logger.exception('Failed get file statuses for %s' % job)
-                            self.active_users.remove(user)
                             continue
 
                     self.logger.info('Updating status for job: ' + job)
@@ -236,11 +235,9 @@ class Monitor(object):
                         failedReady = Update.failed(failed_lfn, failed_reasons)
                     except Exception:
                         logger.exception('Failed to update states')
-                        self.active_users.remove(user)
                         continue
 
                     if doneReady == 1 or failedReady == 1:
-                        self.active_users.remove(user)
                         continue
 
                     try:
@@ -248,13 +245,12 @@ class Monitor(object):
                         os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
                     except Exception:
                         logger.exception('failed to remove monitor file')
-                        self.active_users.remove(user)
                         continue
             input.task_done()
             self.active_users.remove(user)
             time.sleep(1)           
         logger.debug("Worker %s exiting.", i)
-                # TODO: cleaner
+        # TODO: cleaner
 
     def quit_(self, dummyCode, dummyTraceback):
         self.logger.info("Received kill request. Setting STOP flag in the master and threads...")
