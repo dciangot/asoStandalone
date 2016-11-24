@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env python
 """
 Requirements:
 -- fts3 python bindings installed

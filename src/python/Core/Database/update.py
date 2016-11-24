@@ -141,15 +141,16 @@ class update(object):
         """
         good_ids = list()
         updated_lfn = list()
-        for lfn in files:
-            lfn = lfn[0]
-            if lfn.find('temp') == 7:
-                docId = getHashLfn(lfn)
-                good_ids.append(docId)
-                updated_lfn.append(lfn)
-                self.logger.debug("Marking done %s" % lfn)
-                self.logger.debug("Marking done %s" % docId)
         try:
+            for lfn in files:
+                lfn = lfn[0]
+                if lfn.find('temp') == 7:
+                    docId = getHashLfn(lfn)
+                    good_ids.append(docId)
+                    updated_lfn.append(lfn)
+                    self.logger.debug("Marking done %s" % lfn)
+                    self.logger.debug("Marking done %s" % docId)
+
             data = dict()
             data['asoworker'] = self.config.asoworker
             data['subresource'] = 'updateTransfers'
@@ -159,8 +160,8 @@ class update(object):
                                data=encodeRequest(data))
             self.logger.debug("Marked good %s" % good_ids)
         except Exception:
-            self.logger.exception("Error updating document")
-
+            self.logger.exception("Error updating documents")
+            return 1
         return 0
 
     def failed(self, files, failures_reasons=[], max_retry=3, force_fail=False, submission_error=False):
@@ -186,7 +187,7 @@ class update(object):
                 self.logger.debug("Document: %s" % document)
             except Exception as ex:
                 self.logger.error("Error updating failed docs: %s" % ex)
-                continue
+                return 1
 
             fileDoc = dict()
             fileDoc['asoworker'] = self.config.asoworker
@@ -218,9 +219,9 @@ class update(object):
                                    data=encodeRequest(fileDoc))
             except Exception:
                 self.logger.exception('ERROR updating failed documents')
-                continue
+                return 1
         self.logger.debug("failed file updated")
-        return updated_lfn
+        return 0
 
     def acquirePub(self):
         """

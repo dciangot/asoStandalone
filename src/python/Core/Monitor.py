@@ -104,6 +104,7 @@ class Monitor(object):
 
         :return:
         """
+        # TODO: monitor is probably better with multiproc
         workers = list()
         for i in range(self.config.max_threads_num):
             worker = Thread(target=self.worker, args=(i, self.q))
@@ -185,7 +186,7 @@ class Monitor(object):
                         results = fts3.get_job_status(context, job, list_files=False)
                         self.logger.info('Getting status for job: ' + job + ' ' + results['job_state'])
                     else:
-			time.sleep(random.randint(0, random.randint(0,3)))
+                        time.sleep(random.randint(0, random.randint(0,3)))
                         lf = json.loads(open('Monitor/' + user + '/' + File).read())
                         if random.randint(0, random.randint(0,5)) == 0:
                             results = {'job_state': 'FINISHED',
@@ -231,16 +232,21 @@ class Monitor(object):
                     try:
                         logger.info('Marking job %s files done and %s files  failed for job %s'
                                     % (len(done_lfn), len(failed_lfn), job))
-                        Update.transferred(done_lfn)
-                        Update.failed(failed_lfn, failed_reasons)
+                        doneReady = Update.transferred(done_lfn)
+                        failedReady = Update.failed(failed_lfn, failed_reasons)
                     except Exception:
                         logger.exception('Failed to update states')
                         self.active_users.remove(user)
                         continue
+
+                    if doneReady == 1 or failedReady == 1:
+                        self.active_users.remove(user)
+                        continue
+
                     try:
                         logger.info('Removing' + 'Monitor/' + user + '/' + File)
                         os.rename('Monitor/' + user + '/' + File, 'Done/' + File)
-                    except:
+                    except Exception:
                         logger.exception('failed to remove monitor file')
                         self.active_users.remove(user)
                         continue
