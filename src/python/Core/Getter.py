@@ -104,6 +104,12 @@ class Getter(object):
         self.q = Queue()
         self.active_lfns = list()
         self.Update = update(self.logger, self.config)
+        self.site_tfc_map = {}
+        for site in [x['name'] for x in self.phedex.getNodeMap()['phedex']['node']]:
+            if site and str(site) != 'None' and str(site) != 'unknown':
+                self.site_tfc_map[site] = self.get_tfc_rules(site)
+                self.logger.debug('tfc site: %s %s' % (site, self.get_tfc_rules(site)))
+
 
     def algorithm(self):
         """
@@ -126,11 +132,6 @@ class Getter(object):
 
             self.Update.retry()
 
-            for site in sites:
-                if site not in site_tfc_map and str(site) != 'None' and str(site) != 'unknown':
-                    site_tfc_map[site] = self.get_tfc_rules(site)
-                    self.logger.debug('tfc site: %s %s' % (site, self.get_tfc_rules(site)))
-
             for _user in users:
                 for source in sites:
                     for dest in sites:
@@ -141,7 +142,7 @@ class Getter(object):
                         # IMPORTANT: remove only on final states
 
                         for files in chunks(lfns, self.config.files_per_job):
-                            self.q.put((files, _user, source, dest, site_tfc_map))
+                            self.q.put((files, _user, source, dest, self.site_tfc_map))
 
             self.logger.debug('Queue lenght: %s' % self.q.qsize())
             time.sleep(4)
@@ -157,11 +158,12 @@ class Getter(object):
         2. Get acquired users and destination sites
         """
 
-        # TODO: flexible with other DBs
+        # TODO: flexible with other DBs and get users list
 
-        self.doc_acq = Update.acquire()
+        users = Update.acquire()
 
-        self.documents = Update.getAcquired()
+        if users != 1:
+            self.documents = Update.getAcquired(users)
 
         for doc in self.documents:
             if doc['user_role'] is None:

@@ -287,7 +287,7 @@ class Publisher(object):
         for active_file in active_files:
             job_end_time = active_file['value'][5]
             if job_end_time:
-                wf_jobs_endtime.append(int(job_end_time) - time.timezone)
+                wf_jobs_endtime.append(int(job_end_time) - time.time())
             dest_lfn = active_file['value'][2]
             if not pnn or not input_dataset or not input_dbs_url:
                 pnn = str(active_file['value'][0])
@@ -303,10 +303,11 @@ class Publisher(object):
 
             lfn_ready.setdefault(orig_filename, []).append(dest_lfn)
 
-        if max(wf_jobs_endtime) > 1000:
+        if max(wf_jobs_endtime) > 3000:
             force_publication = True
             if not self.config.TEST:
-                result = self.publish(task, input_dataset, input_dbs_url, pnn, lfn_ready, force_publication, connection, user_proxy)
+                result = self.publish(task, input_dataset, input_dbs_url, pnn, lfn_ready,
+                                      force_publication, connection, user_proxy)
 
                 for dataset in result.keys():
                     published_files = result[dataset].get('published', [])

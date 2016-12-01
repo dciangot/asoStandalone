@@ -49,43 +49,79 @@ class update(object):
         NEW -> ACQUIRED (asoworker NULL -> config.asoworker)
         :return:
         """
+
+        self.logger.info('Retrieving users...')
         fileDoc = dict()
+        fileDoc['subresource'] = 'activeUsers'
+        fileDoc['grouping'] = 0
         fileDoc['asoworker'] = self.config.asoworker
-        fileDoc['subresource'] = 'acquireTransfers'
 
-        self.logger.debug("Retrieving transfers from oracleDB")
-
-        result = dict()
         try:
-            result = self.oracleDB.post(self.config.oracleFileTrans,
-                                        data=encodeRequest(fileDoc))
+            self.oracleDB.get(self.config.oracleFileTrans,
+                              data=encodeRequest(fileDoc))
         except Exception as ex:
             self.logger.error("Failed to acquire transfers \
                               from oracleDB: %s" % ex)
+            return 1
 
-        return str(result)
+        users = list()
+        try:
+            docs = oracleOutputMapping(result)
+            users = [[x['username'], x['user_group'], x['user_role']] for x in docs]
+            self.logger.info('Users to process: %s' % str(users))
+        except:
+            self.logger.exception('User data malformed. ')
 
-    def getAcquired(self):
+        for user in users:
+            fileDoc = dict()
+            fileDoc['asoworker'] = self.config.asoworker
+            fileDoc['subresource'] = 'acquireTransfers'
+            fileDoc['username'] = user[0]
+
+            self.logger.debug("Retrieving transfers from oracleDB for user: %s " % user)
+
+            try:
+                self.oracleDB.post(self.config.oracleFileTrans,
+                                   data=encodeRequest(fileDoc))
+            except Exception as ex:
+                self.logger.error("Failed to acquire transfers \
+                                  from oracleDB: %s" % ex)
+
+        return users
+
+    def getAcquired(self, users):
         """
         Get a number of documents to be submitted (in ACQUIRED status) and return results of the query for logs
         :return:
         """
-        fileDoc = dict()
-        fileDoc['asoworker'] = self.config.asoworker
-        fileDoc['subresource'] = 'acquiredTransfers'
-        fileDoc['grouping'] = 0
-
-        self.logger.debug("Retrieving users from oracleDB")
-
         documents = list()
-        try:
-            results = self.oracleDB.get(self.config.oracleFileTrans,
-                             data=encodeRequest(fileDoc))
-            documents = oracleOutputMapping(results)
-        except Exception as ex:
-            self.logger.error("Failed to get acquired transfers \
-                              from oracleDB: %s" % ex)
-            pass
+
+        for user in users:
+            username = user[0]
+            group = user[1]
+            role = user[2]
+
+            fileDoc = dict()
+            fileDoc['asoworker'] = self.config.asoworker
+            fileDoc['subresource'] = 'acquiredTransfers'
+            fileDoc['grouping'] = 1
+            fileDoc['username'] = username
+            if group == '':
+                group = None
+            if role == '':
+                role = None
+            fileDoc['vogroup'] = group
+            fileDoc['vorole'] = role
+
+            self.logger.debug("Retrieving users from oracleDB")
+
+            try:
+                results = self.oracleDB.get(self.config.oracleFileTrans,
+                                            data=encodeRequest(fileDoc))
+                documents += oracleOutputMapping(results)
+            except Exception as ex:
+                self.logger.error("Failed to get acquired transfers \
+                                  from oracleDB: %s" % ex)
 
         return documents
 
