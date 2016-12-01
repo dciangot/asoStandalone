@@ -105,7 +105,7 @@ class Getter(object):
         self.active_lfns = list()
         self.Update = update(self.logger, self.config)
         self.site_tfc_map = {}
-        for site in [x['name'] for x in self.phedex.getNodeMap()['phedex']['node']]:
+        for site in [x['name'] for x in json.loads(self.phedex.getNodeMap())['phedex']['node']]:
             if site and str(site) != 'None' and str(site) != 'unknown':
                 self.site_tfc_map[site] = self.get_tfc_rules(site)
                 self.logger.debug('tfc site: %s %s' % (site, self.get_tfc_rules(site)))
