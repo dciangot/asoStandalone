@@ -20,7 +20,6 @@ import sys
 import logging
 import time
 import json
-from datetime import timedelta
 from threading import Thread, Lock
 from WMCore.Configuration import loadConfigurationFile
 from MultiProcessingLog import MultiProcessingLog
@@ -28,7 +27,6 @@ from Core import setProcessLogger
 from Queue import Queue
 from Core.Database.update import update
 import signal
-
 
 def createLogdir(dirname):
     """ Create the directory dirname ignoring errors in case it exists. Exit if
@@ -94,6 +92,9 @@ class Publisher(object):
         self.max_files_per_block = max(1, self.config.max_files_per_block)
         self.block_publication_timeout = self.config.block_closure_timeout
         self.publish_dbs_url = self.config.publish_dbs_url
+        self.force_failure = False
+        self.publication_failure_msg = ''
+        self.force_publication = False
 
         WRITE_PATH = "/DBSWriter"
         MIGRATE_PATH = "/DBSMigrate"
@@ -106,6 +107,11 @@ class Publisher(object):
             self.publish_migrate_url = self.publish_dbs_url + MIGRATE_PATH
             self.publish_read_url = self.publish_dbs_url + READ_PATH
             self.publish_dbs_url += WRITE_PATH
+
+        try:
+            self.connection = RequestHandler(config={'timeout': 300, 'connecttimeout' : 300})
+        except Exception:
+            self.logger.exception("Error initializing the connection")
 
     def algorithm(self):
         """
@@ -188,6 +194,10 @@ class Publisher(object):
         Update = update(logger, self.config_getter)
 
         while not self.STOP:
+            self.force_failure = False
+            self.publication_failure_msg = ''
+            self.force_publication = False
+
             if inputs.empty():
                 time.sleep(10)
                 continue
@@ -203,7 +213,8 @@ class Publisher(object):
 
             if not self.config.TEST:
                 try:
-                    userDN = getDNFromUserName(user, logger, ckey=self.config_getter.opsProxy, cert=self.config_getter.opsProxy)
+                    userDN = getDNFromUserName(user, logger, ckey=self.config_getter.opsProxy,
+                                               cert=self.config_getter.opsProxy)
                 except Exception as ex:
                     logger.exception('Cannot retrieve user DN')
                     self.critical_failure([x['source_lfn'] for x in input], lock, inputs)
@@ -273,21 +284,18 @@ class Publisher(object):
         logger.debug("Worker %s exiting.", i)
         return 0
 
-    def acquire(self, task, active_files, user_proxy, Update):
-        try:
-            connection = RequestHandler(config={'timeout': 300, 'connecttimeout': 300})
-        except Exception:
-            msg = "Error initializing the connection"
-            self.logger.exception(msg)
-            return -1
+    def acquire(self, workflow, active_files, user_proxy, Update):
+        wfnamemsg = "%s: " % (workflow)
 
         lfn_ready = {}
         wf_jobs_endtime = []
         pnn, input_dataset, input_dbs_url = "", "", ""
         for active_file in active_files:
             job_end_time = active_file['value'][5]
-            if job_end_time:
-                wf_jobs_endtime.append(int(job_end_time) - time.time())
+            if job_end_time and self.config.isOracle:
+                wf_jobs_endtime.append(int(job_end_time) - time.timezone)
+            elif job_end_time:
+                wf_jobs_endtime.append(int(time.mktime(time.strptime(str(job_end_time), '%Y-%m-%d %H:%M:%S'))) - time.timezone)
             dest_lfn = active_file['value'][2]
             if not pnn or not input_dataset or not input_dbs_url:
                 pnn = str(active_file['value'][0])
@@ -300,35 +308,173 @@ class Publisher(object):
                 orig_filename = left_piece + '.' + fileext
             else:
                 orig_filename = left_piece
-
             lfn_ready.setdefault(orig_filename, []).append(dest_lfn)
 
-        if max(wf_jobs_endtime) > 3000:
-            force_publication = True
-            if not self.config.TEST:
-                result = self.publish(task, input_dataset, input_dbs_url, pnn, lfn_ready,
-                                      force_publication, connection, user_proxy)
+        try:
+            msg = "List of jobs end time (len = %s): %s" % (len(wf_jobs_endtime), wf_jobs_endtime)
+            self.logger.debug(wfnamemsg+msg)
+            if wf_jobs_endtime:
+                wf_jobs_endtime.sort()
+            msg = "Oldest job end time: %s. Now: %s." % (wf_jobs_endtime[0], time.time())
+            self.logger.debug(wfnamemsg+msg)
+            workflow_duration = (time.time() - int(wf_jobs_endtime[0]))
+            workflow_expiration_time = self.config.workflow_expiration_time * 24*60*60
+            if workflow_duration > workflow_expiration_time:
+                self.force_publication = True
+                self.force_failure = True
+                time_since_expiration = workflow_duration - workflow_expiration_time
+                hours = int(time_since_expiration/60/60)
+                minutes = int((time_since_expiration - hours*60*60)/60)
+                seconds = int(time_since_expiration - hours*60*60 - minutes*60)
+                self.publication_failure_msg = "Workflow %s expired since %sh:%sm:%ss!" % (workflow, hours, minutes, seconds)
+                msg = self.publication_failure_msg
+                msg += " Will force the publication if possible or fail it otherwise."
+                self.logger.info(wfnamemsg+msg)
+        except Exception:
+            self.logger.exception("Failed to calculate workflow expiration date")
+            return 1
+        # List with the number of ready files per dataset.
+        lens_lfn_ready = map(len, lfn_ready.values())
+        msg = "Number of ready files per dataset: %s." % lens_lfn_ready
+        self.logger.info(wfnamemsg+msg)
+        # List with booleans that tell if there are more than max_files_per_block to
+        # publish per dataset.
+        enough_lfn_ready = [(x >= self.max_files_per_block) for x in lens_lfn_ready]
+        # Auxiliary flag.
+        enough_lfn_ready_in_all_datasets = not False in enough_lfn_ready
+        # If for any of the datasets there are less than max_files_per_block to publish,
+        # check for other conditions to decide whether to publish that dataset or not.
+        if enough_lfn_ready_in_all_datasets:
+            # TODO: Check how often we are on this situation. I suspect it is not so often,
+            # in which case I would remove the 'if enough_lfn_ready_in_all_datasets' and
+            # always retrieve the workflow status as seems to me it is cleaner and makes
+            # the code easier to understand. (Comment from Andres Tanasijczuk)
+            msg = "All datasets have more than %s ready files." % (self.max_files_per_block)
+            msg += " No need to retrieve task status nor last publication time."
+            self.logger.info(wfnamemsg+msg)
+        else:
+            msg  = "At least one dataset has less than %s ready files." % (self.max_files_per_block)
+            self.logger.info(wfnamemsg+msg)
+            # Retrieve the workflow status. If the status can not be retrieved, continue
+            # with the next workflow.
+            workflow_status = ''
+            url = '/'.join(self.config.cache_area.split('/')[:-1]) + '/workflow'
+            msg = "Retrieving status from %s" % (url)
+            self.logger.info(wfnamemsg+msg)
+            buf = cStringIO.StringIO()
+            data = {'workflow': workflow}
+            header = {"Content-Type ": "application/json"}
+            res_ = ''
+            try:
+                _, res_ = self.connection.request(url,
+                                                  data,
+                                                  header,
+                                                  doseq=True,
+                                                  ckey=user_proxy,
+                                                  cert=user_proxy
+                                                 )# , verbose=True) #  for debug
+            except Exception as ex:
+                self.logger.exception('Error retrieving status from cache.')
+                return 1
 
-                for dataset in result.keys():
-                    published_files = result[dataset].get('published', [])
-                    if published_files:
-                        Update.pubDone(published_files, task)
-                        for lfn in published_files:
-                            self.active_files.remove(lfn)
-                    failed_files = result[dataset].get('failed', [])
-                    if failed_files:
-                        failure_reason = result[dataset].get('failure_reason', "")
-                        force_failure = result[dataset].get('force_failure', False)
-                        Update.pubFailed(failed_files, failure_reason, force_failure)
-                        for lfn in failed_files:
-                            self.active_files.remove(lfn)
+            msg = "Status retrieved from cache. Loading task status."
+            self.logger.info(wfnamemsg+msg)
+            try:
+                buf.close()
+                res = json.loads(res_)
+                workflow_status = res['result'][0]['status']
+                msg = "Task status is %s." % workflow_status
+                self.logger.info(wfnamemsg+msg)
+            except ValueError:
+                msg = "Workflow removed from WM."
+                self.logger.error(wfnamemsg+msg)
+                workflow_status = 'REMOVED'
+            except Exception:
+                msg = "Error loading task status!"
+                self.logger.exception(wfnamemsg+msg)
+                return 1
+            # If the workflow status is terminal, go ahead and publish all the ready files
+            # in the workflow.
+            if workflow_status in ['COMPLETED', 'FAILED', 'KILLED', 'REMOVED']:
+                self.force_publication = True
+                msg = "Considering task status as terminal. Will force publication."
+                self.logger.info(wfnamemsg+msg)
+            # Otherwise...
             else:
-                Update.pubDone([x['value'][1] for x in active_files], task)
-                for lfn in [x['value'][1] for x in active_files]:
-                    self.active_files.remove(lfn)
-            return 0
+                msg = "Task status is not considered terminal."
+                self.logger.info(wfnamemsg+msg)
+                msg = "Getting last publication time."
+                self.logger.info(wfnamemsg+msg)
+                # Get when was the last time a publication was done for this workflow (this
+                # should be more or less independent of the output dataset in case there are
+                # more than one).
+                last_publication_time = None
+                try:
+                    result = Update.searchTask(workflow)
+                except Exception as ex:
+                    self.logger.error("Error during task doc retrieving: %s" %ex)
+                    return 1
+                if last_publication_time:
+                    date = result['last_publication']
+                    seconds = time.strptime(date, "%Y-%m-%d %H:%M:%S.%f").timetuple()
+                    last_publication_time = time.mktime(seconds)
 
-        return 1
+                msg = "Last publication time: %s." % str(last_publication_time)
+                self.logger.debug(wfnamemsg+msg)
+                # If this is the first time a publication would be done for this workflow, go
+                # ahead and publish.
+                if not last_publication_time:
+                    self.force_publication = True
+                    msg = "There was no previous publication. Will force publication."
+                    self.logger.info(wfnamemsg+msg)
+                # Otherwise...
+                else:
+                    last = last_publication_time
+                    msg = "Last published block: %s" % (last)
+                    self.logger.debug(wfnamemsg+msg)
+                    # If the last publication was long time ago (> our block publication timeout),
+                    # go ahead and publish.
+                    time_since_last_publication = time.time() - last
+                    hours = int(time_since_last_publication/60/60)
+                    minutes = int((time_since_last_publication - hours*60*60)/60)
+                    timeout_hours = int(self.block_publication_timeout/60/60)
+                    timeout_minutes = int((self.block_publication_timeout - timeout_hours*60*60)/60)
+                    msg = "Last publication was %sh:%sm ago" % (hours, minutes)
+                    if time_since_last_publication > self.block_publication_timeout:
+                        self.force_publication = True
+                        msg += " (more than the timeout of %sh:%sm)." % (timeout_hours, timeout_minutes)
+                        msg += " Will force publication."
+                    else:
+                        msg += " (less than the timeout of %sh:%sm)." % (timeout_hours, timeout_minutes)
+                        msg += " Not enough to force publication."
+                    self.logger.info(wfnamemsg+msg)
+        # Call the publish method with the lists of ready files to publish for this
+        # workflow grouped by datasets.
+        result = self.publish(workflow, input_dataset, input_dbs_url, pnn, lfn_ready)
+        for dataset in result.keys():
+            try:
+                self.logger.info('Uploading results')
+                published_files = result[dataset].get('published', [])
+                if published_files:
+                    Update.pubDone(workflow, published_files)
+                failed_files = result[dataset].get('failed', [])
+                if failed_files:
+                    failure_reason = result[dataset].get('failure_reason', "")
+                    force_failure = result[dataset].get('force_failure', False)
+                    Update.pubFailed(workflow, failed_files, failure_reason, force_failure)
+            except:
+                self.logger.exception('Failed to update document states')
+                return 1
+        try:
+            # TODO: update last publication time db task updatepublicationtime,workflow,
+            self.logger.debug("Updating last publication type for: %s " % workflow)
+            Update.lastPubTime(workflow)
+            self.logger.info("Publications for task %s completed." % workflow)
+        except Exception as ex:
+            self.logger.error("Error during task doc updating: %s" %ex)
+            return 1
+
+        return 0
 
     def clean(self, lfn_ready_list, publDescFiles):
         """
@@ -976,6 +1122,7 @@ class Publisher(object):
         self.logger.info(wfnamemsg+msg)
         sourceURL = sourceApi.url
         data = {'migration_url': sourceURL, 'migration_input': block}
+        result = dict()
         try:
             result = migrateApi.submitMigration(data)
         except HTTPError as he:

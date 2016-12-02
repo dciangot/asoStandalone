@@ -4,7 +4,7 @@ Define all the interations with the ASO DB
 from ServerUtilities import encodeRequest, oracleOutputMapping
 from Core import getHashLfn
 from RESTInteractions import HTTPRequests
-
+from ServerUtilities import getColumn
 
 class update(object):
 
@@ -299,7 +299,7 @@ class update(object):
 
         return to_pub_docs
 
-    def pubDone(self, files, workflow):
+    def pubDone(self, workflow, files):
         """
 
         :param files:
@@ -327,7 +327,7 @@ class update(object):
         except Exception as ex:
             self.logger.error("Error during status update for published docs: %s" % ex)
 
-    def pubFailed(self, files, failure_reasons=list(), force_failure=False):
+    def pubFailed(self, task, files, failure_reasons=list(), force_failure=False):
         """
 
         :param files:
@@ -347,9 +347,7 @@ class update(object):
         fileDoc['list_of_ids'] = id_list
         fileDoc['list_of_publication_state'] = ['FAILED' for x in id_list]
 
-        #if force_failure or document['publish_retry_count'] > self.max_retry:
-        #else:
-        #    fileDoc['list_of_publication_state'] = 'RETRY'
+
         # TODO: implement retry, publish_retry_count missing from input?
 
         fileDoc['list_of_retry_value'] = [1 for x in id_list]
@@ -362,3 +360,40 @@ class update(object):
         except Exception:
             msg = "Error updating failed documents"
             self.logger.exception(msg)
+
+    def lastPubTime(self, workflow):
+        """
+
+        :param workflow:
+        :return:
+        """
+        data = dict()
+        data['workflow'] = workflow
+        data['subresource'] = 'updatepublicationtime'
+        try:
+            result = self.oracleDB.get(self.config.oracleFileTrans.replace('filetransfers', 'task'),
+                                       data=encodeRequest(data))
+            self.logger.debug("%s last publication type update: %s " % (workflow, str(result)))
+        except Exception:
+            msg = "Error updating last publication time"
+            self.logger.exception(msg)
+
+    def searchTask(self, workflow):
+        """
+
+        :param workflow:
+        :return:
+        """
+        data = dict()
+        data['workflow'] = workflow
+        data['subresource'] = 'search'
+        try:
+            result = self.oracleDB.get(self.config.oracleFileTrans.replace('filetransfers', 'task'),
+                                       data=encodeRequest(data))
+            self.logger.debug("task: %s " % str(result[0]))
+            self.logger.debug("task: %s " % getColumn(result[0], 'tm_last_publication'))
+        except Exception as ex:
+            self.logger.error("Error during task doc retrieving: %s" % ex)
+            return {}
+
+        return oracleOutputMapping(result)
