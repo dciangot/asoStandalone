@@ -144,10 +144,6 @@ class update(object):
                 docId = getHashLfn(lfn)
                 self.logger.debug("Marking acquired %s" % docId)
                 try:
-        #            docbyId = self.oracleDB.get(
-        #                self.config.oracleFileTrans.replace('filetransfers', 'fileusertransfers'),
-        #                data=encodeRequest({'subresource': 'getById', 'id': docId}))
-        #            document = oracleOutputMapping(docbyId, None)[0]
                     id_list.append(docId)
                     lfn_in_transfer.append(lfn)
                 except Exception as ex:
@@ -217,7 +213,7 @@ class update(object):
             docId = getHashLfn(lfn)
             self.logger.debug("Marking failed %s" % docId)
             try:
-                docbyId = self.oracleDB.get(self.config.oracleUserFileTrans,
+                docbyId = self.oracleDB.get(self.config.oracleUserFileTrans.replace('filetransfer','fileusertransfers'),
                                             data=encodeRequest({'subresource': 'getById', 'id': docId}))
                 document = oracleOutputMapping(docbyId, None)[0]
                 self.logger.debug("Document: %s" % document)
