@@ -13,10 +13,8 @@ import signal
 def quit(pool):
     for process in pool:
         process.terminate()
-        process.join()
 
-    print ("Workers stopped. Exiting main.")
-    sys.exit(0)
+    print ("Kill command sent to workers. Waiting for them to finish")
 
 
 if __name__ == '__main__':
@@ -99,3 +97,9 @@ if __name__ == '__main__':
 
     signal.signal(signal.SIGINT, quit(pool))
     signal.signal(signal.SIGTERM, quit(pool))
+
+    for process in pool:
+        process.join()
+
+    print ("Workers stopped. Exiting main.")
+    sys.exit(0)
