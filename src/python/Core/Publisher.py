@@ -28,6 +28,7 @@ from Queue import Queue
 from Core.Database.update import update
 import signal
 
+
 def createLogdir(dirname):
     """ Create the directory dirname ignoring errors in case it exists. Exit if
         the directory cannot be created.

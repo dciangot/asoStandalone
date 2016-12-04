@@ -9,7 +9,14 @@ from Core.Monitor import Monitor
 from Core.Publisher import Publisher
 import signal
 
-def quit():
+
+def quit(pool):
+    for process in pool:
+        process.terminate()
+        process.join()
+
+    print ("Workers stopped. Exiting main.")
+    sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -52,13 +59,12 @@ if __name__ == '__main__':
     if not options.comp:
         options.comp = ["Getter", "Monitor", "Publisher"]
 
-    p = multiprocessing.Pool(len(options.comp))
+    pool = list()
 
     for component in options.comp:
         if component not in ["Getter", "Monitor", "Publisher"]:
             print >> sys.stderr, ('ERROR: %s is not a valid component name... skipping' % component)
             continue
-
 
         print ('Starting '+component)
 
@@ -67,15 +73,17 @@ if __name__ == '__main__':
                 g = multiprocessing.Process(target=Getter,
                                             args=(configuration, options.quiet, options.debug))
                 g.start()
+                pool.append(g)
             except Exception as ex:
                 print >> sys.stderr, ('ERROR: starting %s . Exiting. %s' % (component,ex))
                 sys.exit(1)
 
         elif component == "Monitor":
             try:
-                g = multiprocessing.Process(target=Monitor,
+                m = multiprocessing.Process(target=Monitor,
                                             args=(configuration, options.quiet, options.debug))
-                g.start()
+                m.start()
+                pool.append(m)
             except Exception as ex:
                 print >> sys.stderr, ('ERROR: starting %s . Exiting. %s' % (component,ex))
                 sys.exit(1)
@@ -84,14 +92,10 @@ if __name__ == '__main__':
                 p.multiprocessing.Process(target=Publisher,
                                             args=(configuration, options.quiet, options.debug))
                 p.start()
+                pool.append(p)
             except Exception as ex:
                 print >> sys.stderr, ('ERROR: starting %s . Exiting. %s' % (component,ex))
                 sys.exit(1)
 
-    signal.signal(signal.SIGINT, quit())
-    signal.signal(signal.SIGTERM, quit())
-
-
-
-
-
+    signal.signal(signal.SIGINT, quit(pool))
+    signal.signal(signal.SIGTERM, quit(pool))
