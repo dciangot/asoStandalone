@@ -307,6 +307,7 @@ class Getter(object):
                 user_proxy = self.config.opsProxy
                 self.logger.debug("Using opsProxy for testmode")
 
+            context = dict()
             try:
                 if self.config.TEST:
                     logger.debug("Running in test mode, submitting fake jobs")
