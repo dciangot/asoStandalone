@@ -97,6 +97,9 @@ class Publisher(object):
         self.publication_failure_msg = ''
         self.force_publication = False
 
+        self.single_user = False
+        self.whitelist = [tuple()]
+
         WRITE_PATH = "/DBSWriter"
         MIGRATE_PATH = "/DBSMigrate"
         READ_PATH = "/DBSReader"
@@ -148,16 +151,17 @@ class Publisher(object):
             # TODO: N.B. check the effect of the limited number of docs from queries!! Can one user stuck everything?
 
             for user in users:
-                input = dict()
-                tasks = [i for i in set([x['taskname'] for x in toPub
-                                         if [x['username'], x['user_group'], x['user_role']] == user])]
-                for task in tasks:
-                    docs = [x for x in toPub if x['taskname'] == task if x['source_lfn'] not in self.active_files]
-                    input = {'task': task, 'docs': docs}
-                    self.active_files += [x['source_lfn'] for x in docs]
+                if user in self.whitelist or not self.single_user:
+                    input = dict()
+                    tasks = [i for i in set([x['taskname'] for x in toPub
+                                             if [x['username'], x['user_group'], x['user_role']] == user])]
+                    for task in tasks:
+                        docs = [x for x in toPub if x['taskname'] == task if x['source_lfn'] not in self.active_files]
+                        input = {'task': task, 'docs': docs}
+                        self.active_files += [x['source_lfn'] for x in docs]
 
-                    self.q.put((user, input))
-                self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
+                        self.q.put((user, input))
+                    self.logger.info('%s acquired tasks for user %s' % (len(tasks), user))
 
             time.sleep(10)
 
