@@ -84,8 +84,12 @@ def submit(proxy, toTrans, source, destination):
 
         job = fts3.new_job(transfers)
 
-        print("Monitor link: https://fts3.cern.ch:8449/fts3/ftsmon/#/job/"+fts3.submit(context, job))
+        #print("Monitor link: https://fts3.cern.ch:8449/fts3/ftsmon/#/job/"+fts3.submit(context, job))
+        jobid = fts3.submit(context, job)
 
+        #for file in (fts3.get_job_status(context, jobid, list_files=True))["files"]:
+        for key, value in (fts3.get_job_status(context, jobid, list_files=True)).iteritems() :
+            print key
 
 def main(argv):
     # TODO: add Monitor command and publish
